@@ -1,0 +1,25 @@
+{
+  "name": "frameflow-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "FRAMEFLOW — Professional Browser-Based Nonlinear Video Editing Platform",
+  "author": "FRAMEFLOW Core Team",
+  "license": "Apache-2.0",
+  "type": "module",
+  "imports": {
+    "@frameflow/*": "./packages/*/src/index.ts"
+  },
+  "scripts": {
+    "dev": "node scripts/serve.js",
+    "start": "node scripts/serve.js",
+    "test": "node --experimental-strip-types --test tests/unit/*.test.js",
+    "diagnostics": "node scripts/diagnostics.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "typescript": "^5.4.5"
+  }
+}

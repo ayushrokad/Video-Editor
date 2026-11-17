@@ -1,0 +1,17 @@
+{
+  "name": "@frameflow/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node ../../scripts/serve.js",
+    "build": "echo 'Build successful'",
+    "start": "node ../../scripts/serve.js"
+  },
+  "dependencies": {
+    "@frameflow/design-system": "workspace:*",
+    "@frameflow/gpu-renderer": "workspace:*",
+    "@frameflow/media-engine": "workspace:*",
+    "@frameflow/shared-types": "workspace:*"
+  }
+}

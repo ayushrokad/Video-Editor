@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "baseUrl": ".",
+    "paths": {
+      "@frameflow/design-system": ["packages/design-system/src"],
+      "@frameflow/editor-ui": ["packages/editor-ui/src"],
+      "@frameflow/timeline-engine": ["packages/timeline-engine/src"],
+      "@frameflow/project-engine": ["packages/project-engine/src"],
+      "@frameflow/media-engine": ["packages/media-engine/src"],
+      "@frameflow/playback-engine": ["packages/playback-engine/src"],
+      "@frameflow/gpu-renderer": ["packages/gpu-renderer/src"],
+      "@frameflow/audio-engine": ["packages/audio-engine/src"],
+      "@frameflow/export-engine": ["packages/export-engine/src"],
+      "@frameflow/browser-storage": ["packages/browser-storage/src"],
+      "@frameflow/api-client": ["packages/api-client/src"],
+      "@frameflow/shared-types": ["packages/shared-types/src"]
+    }
+  },
+  "exclude": ["node_modules", "dist", ".next"]
+}

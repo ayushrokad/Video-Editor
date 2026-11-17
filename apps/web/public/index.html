@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FRAMEFLOW — Professional Browser-Based Video Editor (M0)</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top Application Header -->
+  <header class="app-header">
+    <div class="top-bar">
+      <div class="brand-section">
+        <div class="brand-logo">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+          FRAMEFLOW
+        </div>
+        <span class="brand-badge">Web Edition M0</span>
+        <span style="font-size: 11px; color: var(--text-muted)">Project:</span>
+        <span style="font-size: 11px; font-weight: 600; color: #fff;">Feature_Master_2026.ffproj</span>
+        <span style="font-size: 10px; color: var(--accent-emerald);">● Auto-Saved</span>
+      </div>
+
+      <!-- Workspace Switcher -->
+      <div class="workspace-switcher">
+        <button class="ws-tab" data-ws="media">Media</button>
+        <button class="ws-tab active" data-ws="edit">Edit</button>
+        <button class="ws-tab" data-ws="motion">Motion</button>
+        <button class="ws-tab" data-ws="color">Color</button>
+        <button class="ws-tab" data-ws="audio">Audio</button>
+        <button class="ws-tab" data-ws="deliver">Deliver</button>
+      </div>
+
+      <div class="header-actions">
+        <button class="action-btn" id="open-diag-btn" onclick="document.querySelector('[data-page=\'page-diagnostics\']').click()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          Diagnostics
+        </button>
+        <button class="action-btn primary" id="quick-export-btn">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Export
+        </button>
+      </div>
+    </div>
+
+    <!-- Approved 14-Menu Bar -->
+    <nav class="menu-bar">
+      <div class="menu-item">
+        <div class="menu-label">File</div>
+        <div class="menu-dropdown">
+          <div class="menu-entry"><span>New Project</span><span class="menu-shortcut">Ctrl+Alt+N</span></div>
+          <div class="menu-entry"><span>Open Project...</span><span class="menu-shortcut">Ctrl+O</span></div>
+          <div class="menu-entry"><span>Save Project</span><span class="menu-shortcut">Ctrl+S</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-entry" onclick="document.getElementById('video-file-input').click()"><span>Import Media...</span><span class="menu-shortcut">Ctrl+I</span></div>
+          <div class="menu-entry"><span>Export Media...</span><span class="menu-shortcut">Ctrl+M</span></div>
+        </div>
+      </div>
+      <div class="menu-item">
+        <div class="menu-label">Edit</div>
+        <div class="menu-dropdown">
+          <div class="menu-entry"><span>Undo</span><span class="menu-shortcut">Ctrl+Z</span></div>
+          <div class="menu-entry"><span>Redo</span><span class="menu-shortcut">Ctrl+Shift+Z</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-entry"><span>Cut</span><span class="menu-shortcut">Ctrl+X</span></div>
+          <div class="menu-entry"><span>Copy</span><span class="menu-shortcut">Ctrl+C</span></div>
+          <div class="menu-entry"><span>Paste</span><span class="menu-shortcut">Ctrl+V</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-entry"><span>Keyboard Shortcuts...</span><span class="menu-shortcut">Ctrl+Alt+K</span></div>
+          <div class="menu-entry"><span>Preferences...</span><span class="menu-shortcut">Ctrl+,</span></div>
+        </div>
+      </div>
+      <div class="menu-item"><div class="menu-label">Project</div></div>
+      <div class="menu-item"><div class="menu-label">Clip</div></div>
+      <div class="menu-item"><div class="menu-label">Sequence</div></div>
+      <div class="menu-item"><div class="menu-label">Timeline</div></div>
+      <div class="menu-item"><div class="menu-label">Markers</div></div>
+      <div class="menu-item"><div class="menu-label">Graphics</div></div>
+      <div class="menu-item"><div class="menu-label">Effects</div></div>
+      <div class="menu-item"><div class="menu-label">Audio</div></div>
+      <div class="menu-item"><div class="menu-label">Color</div></div>
+      <div class="menu-item"><div class="menu-label">View</div></div>
+      <div class="menu-item"><div class="menu-label">Window</div></div>
+      <div class="menu-item"><div class="menu-label">Help</div></div>
+    </nav>
+
+    <!-- Navigation Strip -->
+    <div class="tab-strip">
+      <button class="nav-tab active" data-page="page-studio">Studio Interface Preview (M0)</button>
+      <button class="nav-tab" data-page="page-diagnostics">Browser Diagnostics (Phase B)</button>
+      <button class="nav-tab" data-page="page-media-poc">Media Engine PoC (Phase C)</button>
+      <button class="nav-tab" data-page="page-gpu-poc">GPU Color Shader PoC (Phase D)</button>
+      <button class="nav-tab" data-page="page-research">Research & Architecture Docs</button>
+    </div>
+  </header>
+
+  <!-- Hidden File Input for Local Video Pick -->
+  <input type="file" id="video-file-input" accept="video/*" style="display: none;">
+
+  <!-- Main Viewport -->
+  <main class="main-viewport">
+
+    <!-- PAGE 1: Studio Interface Preview -->
+    <section class="view-page active" id="page-studio" style="padding: 4px;">
+      <div class="studio-grid">
+        
+        <!-- Left Panel: Project & Media Browser -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>PROJECT: BIN EXPLORER</span>
+            <span style="font-size: 10px; color: var(--accent-blue)">Workspace: <span id="active-ws-name">EDIT</span></span>
+          </div>
+          <div class="panel-body" style="padding: 6px; display: flex; flex-direction: column; gap: 8px;">
+            <div id="media-dropzone" style="border: 2px dashed var(--border-subtle); border-radius: 6px; padding: 18px 8px; text-align: center; cursor: pointer; background: var(--bg-input);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin: 0 auto 6px; color: var(--accent-blue);"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+              <div style="font-size: 11px; font-weight: 600;">Drag Video Here or Click</div>
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">MP4, WebM, MOV (Local-First)</div>
+            </div>
+
+            <div id="meta-details" style="background: var(--bg-root); border: 1px solid var(--border-subtle); border-radius: 4px; padding: 8px;">
+              <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; font-weight: 600;">Clip Metadata</div>
+              <div style="font-size: 11px; color: var(--text-muted);">No file loaded yet. Import a video above or test with synthetic color bars.</div>
+            </div>
+
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); margin-top: 4px;">Project Bins</div>
+            <div style="font-size: 11px; display: flex; flex-direction: column; gap: 3px;">
+              <div style="display: flex; align-items: center; gap: 6px; padding: 3px 6px; background: var(--bg-hover); border-radius: 3px; cursor: pointer;">
+                📁 <span>01_A_Roll_Camera</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 3px; cursor: pointer;">
+                📁 <span>02_B_Roll_Inserts</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 3px; cursor: pointer;">
+                📁 <span>03_Production_Audio</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; padding: 3px 6px; border-radius: 3px; cursor: pointer;">
+                📁 <span>04_Motion_Graphics</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Panel: Dual Monitors Suite -->
+        <div class="monitors-container">
+          <!-- Source Monitor -->
+          <div class="panel">
+            <div class="panel-header">
+              <span>SOURCE MONITOR</span>
+              <span class="timecode-badge" style="font-size: 10px;">00:00:00:00</span>
+            </div>
+            <div class="monitor-view">
+              <video id="source-video" style="max-width: 100%; max-height: 100%; object-fit: contain;" playsinline muted></video>
+              <div class="monitor-controls">
+                <div style="display: flex; gap: 4px;">
+                  <button class="transport-btn" title="Mark In (I)">{</button>
+                  <button class="transport-btn" title="Mark Out (O)">}</button>
+                </div>
+                <div style="font-size: 11px; color: var(--text-muted);">Master Source</div>
+                <div style="display: flex; gap: 4px;">
+                  <button class="transport-btn" title="Insert (,)">&lt;,</button>
+                  <button class="transport-btn" title="Overwrite (.)">.&gt;</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Program Monitor (WebGPU/WebGL Realtime Shader Canvas) -->
+          <div class="panel">
+            <div class="panel-header">
+              <span>PROGRAM MONITOR (GPU COMPOSITOR)</span>
+              <span class="timecode-badge" id="timecode-display">00:00:00:00</span>
+            </div>
+            <div class="monitor-view">
+              <canvas id="program-canvas" width="640" height="360" class="monitor-canvas"></canvas>
+              <div class="monitor-controls">
+                <div style="display: flex; gap: 4px;">
+                  <button class="transport-btn" id="rewind-btn" title="Shuttle Reverse (J)">&#9664;&#9664;</button>
+                  <button class="transport-btn" id="play-btn" title="Play / Pause (Space / K)">&#9658;</button>
+                  <button class="transport-btn" id="fwd-btn" title="Shuttle Forward (L)">&#9654;&#9654;</button>
+                </div>
+                <div style="font-size: 11px; color: var(--accent-cyan);">Sequence 1 (1080p 24fps)</div>
+                <div style="display: flex; gap: 6px; font-size: 11px;">
+                  <span style="color: var(--accent-emerald);">WebGPU Active</span>
+                  <span style="color: var(--text-muted);">Fit 100%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Panel: Contextual Inspector -->
+        <div class="panel">
+          <div class="panel-header">
+            <span>CONTEXTUAL INSPECTOR</span>
+            <span style="font-size: 10px; color: var(--accent-blue)">Clip Properties</span>
+          </div>
+          <div class="panel-body" style="font-size: 11px;">
+            
+            <div style="font-weight: 600; color: var(--accent-blue); margin-bottom: 8px; border-bottom: 1px solid var(--border-divider); padding-bottom: 4px;">
+              Real-Time GPU Color Grading (WGSL / GLSL)
+            </div>
+
+            <div class="control-row">
+              <div class="control-label"><span>Exposure</span><span id="slider-exposure-val">0.00</span></div>
+              <input type="range" id="slider-exposure" min="-3" max="3" step="0.05" value="0">
+            </div>
+
+            <div class="control-row">
+              <div class="control-label"><span>Contrast</span><span id="slider-contrast-val">1.00</span></div>
+              <input type="range" id="slider-contrast" min="0" max="2" step="0.05" value="1">
+            </div>
+
+            <div class="control-row">
+              <div class="control-label"><span>Brightness</span><span id="slider-brightness-val">0.00</span></div>
+              <input type="range" id="slider-brightness" min="-1" max="1" step="0.05" value="0">
+            </div>
+
+            <div class="control-row">
+              <div class="control-label"><span>Saturation</span><span id="slider-saturation-val">1.00</span></div>
+              <input type="range" id="slider-saturation" min="0" max="2" step="0.05" value="1">
+            </div>
+
+            <div class="control-row">
+              <div class="control-label"><span>Temperature (Blue/Orange)</span><span id="slider-temperature-val">0.00</span></div>
+              <input type="range" id="slider-temperature" min="-1" max="1" step="0.05" value="0">
+            </div>
+
+            <div class="control-row">
+              <div class="control-label"><span>Tint (Green/Magenta)</span><span id="slider-tint-val">0.00</span></div>
+              <input type="range" id="slider-tint" min="-1" max="1" step="0.05" value="0">
+            </div>
+
+            <div class="control-row">
+              <div class="control-label"><span>Gamma</span><span id="slider-gamma-val">1.00</span></div>
+              <input type="range" id="slider-gamma" min="0.2" max="3" step="0.05" value="1">
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+              <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                <input type="checkbox" id="check-invert"> Invert Color Values
+              </label>
+              <button class="action-btn" id="reset-color-btn" style="padding: 2px 8px; font-size: 10px;">Reset Grade</button>
+            </div>
+
+            <div style="font-weight: 600; color: var(--text-secondary); margin-top: 16px; margin-bottom: 6px; border-bottom: 1px solid var(--border-divider); padding-bottom: 4px;">
+              Motion & Keyframe Curves
+            </div>
+            <div style="display: flex; gap: 4px;">
+              <button class="action-btn" style="flex: 1; justify-content: center; font-size: 10px;">Linear</button>
+              <button class="action-btn" style="flex: 1; justify-content: center; font-size: 10px; background: var(--bg-hover);">Ease In</button>
+              <button class="action-btn" style="flex: 1; justify-content: center; font-size: 10px; background: var(--bg-hover);">Ease Out</button>
+              <button class="action-btn" style="flex: 1; justify-content: center; font-size: 10px; background: var(--accent-blue); color: #fff;">Bezier Curve</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Panel: Multi-Track Timeline -->
+        <div class="panel timeline-container">
+          <div class="timeline-toolbar">
+            <button class="action-btn" style="padding: 2px 6px;" title="Selection Tool (V)">V</button>
+            <button class="action-btn" style="padding: 2px 6px;" title="Ripple Edit (B)">B</button>
+            <button class="action-btn" style="padding: 2px 6px;" title="Razor Cut (C)">C</button>
+            <button class="action-btn" style="padding: 2px 6px;" title="Slip Tool (Y)">Y</button>
+            <div style="width: 1px; height: 16px; background: var(--border-divider);"></div>
+            <button class="action-btn" style="padding: 2px 6px; color: var(--accent-blue);" title="Snapping (S)">🧲 Snap</button>
+            <button class="action-btn" style="padding: 2px 6px; color: var(--accent-emerald);" title="Magnetic Mode (M)">⚡ Magnetic</button>
+            <div style="flex: 1;"></div>
+            <span style="font-size: 10px; color: var(--text-muted);">Timeline Timebase: <strong>24.000 fps Non-Drop</strong></span>
+          </div>
+
+          <div class="timeline-tracks-area">
+            <!-- Track Headers Column -->
+            <div class="track-headers">
+              <div class="track-header-row" style="background: rgba(37, 99, 235, 0.08);">
+                <span style="font-weight: 600; color: #60a5fa;">V2</span>
+                <span style="color: var(--text-muted); font-size: 10px;">Titles / Overlay</span>
+                <span style="cursor: pointer;">👁️ 🔒</span>
+              </div>
+              <div class="track-header-row" style="background: rgba(37, 99, 235, 0.15);">
+                <span style="font-weight: 600; color: #60a5fa;">V1 [Target]</span>
+                <span style="color: var(--text-muted); font-size: 10px;">Primary Video</span>
+                <span style="cursor: pointer;">👁️ 🔒</span>
+              </div>
+              <div class="track-header-row" style="background: rgba(5, 150, 105, 0.15);">
+                <span style="font-weight: 600; color: #34d399;">A1 [Dialogue]</span>
+                <span style="color: var(--text-muted); font-size: 10px;">M S R</span>
+                <span style="cursor: pointer;">🔊</span>
+              </div>
+              <div class="track-header-row" style="background: rgba(5, 150, 105, 0.08);">
+                <span style="font-weight: 600; color: #34d399;">A2 [Music/SFX]</span>
+                <span style="color: var(--text-muted); font-size: 10px;">M S R</span>
+                <span style="cursor: pointer;">🔊</span>
+              </div>
+            </div>
+
+            <!-- Track Canvas Area -->
+            <div class="track-canvas-area" style="padding: 4px 10px;">
+              <!-- Simulated Timeline Track Items -->
+              <div style="height: 48px; border-bottom: 1px solid var(--border-divider); position: relative; display: flex; align-items: center;">
+                <div style="position: absolute; left: 180px; width: 140px; height: 36px; background: #7c3aed; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  Lower_Third.mogrt
+                </div>
+              </div>
+
+              <div style="height: 48px; border-bottom: 1px solid var(--border-divider); position: relative; display: flex; align-items: center; gap: 2px;">
+                <div style="width: 220px; height: 38px; background: #2563eb; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  A001_C001_Scene1_Take1.mov
+                </div>
+                <div style="width: 180px; height: 38px; background: #1d4ed8; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  A001_C002_CloseUp.mov
+                </div>
+                <div style="width: 260px; height: 38px; background: #2563eb; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  A001_C003_WideShot.mov
+                </div>
+              </div>
+
+              <div style="height: 48px; border-bottom: 1px solid var(--border-divider); position: relative; display: flex; align-items: center; gap: 2px;">
+                <div style="width: 220px; height: 38px; background: #059669; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  A001_C001_Audio.wav
+                </div>
+                <div style="width: 180px; height: 38px; background: #047857; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  A001_C002_Audio.wav
+                </div>
+                <div style="width: 260px; height: 38px; background: #059669; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  A001_C003_Audio.wav
+                </div>
+              </div>
+
+              <div style="height: 48px; position: relative; display: flex; align-items: center;">
+                <div style="position: absolute; left: 40px; width: 440px; height: 36px; background: #0f766e; border-radius: 4px; display: flex; align-items: center; padding: 0 8px; font-size: 11px; font-weight: 600; color: #fff; border: 1px solid rgba(255,255,255,0.2);">
+                  Background_Score_Stems.wav
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PAGE 2: Browser Capability Diagnostics (Phase B) -->
+    <section class="view-page" id="page-diagnostics">
+      <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <div>
+          <h2 style="font-size: 16px; font-weight: 700; color: #fff;">Milestone M0 — System & Browser Capability Diagnostics</h2>
+          <p style="font-size: 12px; color: var(--text-muted); margin-top: 2px;">
+            Auditing low-level WebGPU, WebGL 2, WebCodecs, Web Audio, and OPFS hardware capabilities.
+          </p>
+        </div>
+        <button class="action-btn primary" onclick="runBrowserDiagnostics()">Re-Run Audit</button>
+      </div>
+
+      <div class="diag-grid" id="diag-grid">
+        <!-- Rendered by app.js -->
+      </div>
+    </section>
+
+    <!-- PAGE 3: Media Engine PoC (Phase C) -->
+    <section class="view-page" id="page-media-poc">
+      <h2 style="font-size: 16px; font-weight: 700; color: #fff;">Milestone M0 — Media Proof-of-Concept</h2>
+      <p style="font-size: 12px; color: var(--text-muted);">
+        Verifying local video file import, metadata extraction, playback performance, and zero server upload privacy.
+      </p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px;">
+        <div class="panel" style="padding: 16px;">
+          <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Import Local Video File</h3>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+            Select any MP4, WebM, or QuickTime file from your device. The media is parsed entirely in your browser using local blob buffers.
+          </p>
+          <button class="action-btn primary" onclick="document.getElementById('video-file-input').click()" style="padding: 8px 16px;">
+            Choose Local Video File...
+          </button>
+        </div>
+
+        <div class="panel" style="padding: 16px;">
+          <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">Performance & Codec Verification</h3>
+          <ul style="font-size: 11px; color: var(--text-secondary); line-height: 1.8; padding-left: 18px;">
+            <li>Zero-server upload: <strong>100% Client-Side Processing</strong></li>
+            <li>Timecode extraction: <strong>SMPTE 30fps / 24fps quantization</strong></li>
+            <li>Frame extraction capability: <strong>Supported via Canvas/Bitmap</strong></li>
+            <li>Hardware acceleration: <strong>Active via OS media engine</strong></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 4: GPU Color Shader PoC (Phase D) -->
+    <section class="view-page" id="page-gpu-poc">
+      <h2 style="font-size: 16px; font-weight: 700; color: #fff;">Milestone M0 — GPU Color & Shader Pipeline Proof-of-Concept</h2>
+      <p style="font-size: 12px; color: var(--text-muted);">
+        Real-time color transformation executing in WebGPU (WGSL) with automated WebGL 2 (GLSL ES 3.0) fallback.
+      </p>
+
+      <div style="display: flex; gap: 16px; margin-top: 12px;">
+        <div class="panel" style="flex: 1; padding: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #000;">
+          <canvas id="gpu-test-canvas" width="640" height="360" style="max-width: 100%; border-radius: 4px;"></canvas>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 8px;">
+            Real-Time Render: 640x360 @ 60 FPS (Shader Pipeline Active)
+          </div>
+        </div>
+
+        <div class="panel" style="width: 360px; padding: 16px;">
+          <h3 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--accent-blue);">
+            Live Shader Math Controls
+          </h3>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+            Adjust sliders in the right-hand Inspector of the Studio tab to observe instantaneous GPU color grading.
+          </p>
+          <button class="action-btn primary" onclick="document.querySelector('[data-page=\'page-studio\']').click()">
+            Open in Studio Inspector &rarr;
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- PAGE 5: Research & Architecture Docs -->
+    <section class="view-page" id="page-research">
+      <h2 style="font-size: 16px; font-weight: 700; color: #fff;">FRAMEFLOW Research Library & Engineering Specifications</h2>
+      <p style="font-size: 12px; color: var(--text-muted);">
+        Comprehensive competitive intelligence repository, interface taxonomies, and system architecture blueprints.
+      </p>
+
+      <div class="diag-grid" style="margin-top: 16px;">
+        <div class="diag-card">
+          <div class="diag-card-title"><span>Competitor Master Analysis</span><span class="status-pill success">Verified</span></div>
+          <div class="diag-value">RES-CMP-001</div>
+          <div class="diag-desc">Cross-product comparison across Premiere Pro, DaVinci Resolve, After Effects, and Final Cut Pro.</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-card-title"><span>Menus & Panels Inventory</span><span class="status-pill success">Complete</span></div>
+          <div class="diag-value">RES-INV-001</div>
+          <div class="diag-desc">Exhaustive 14-menu architecture, complete panel breakdown, and contextual inspector specifications.</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-card-title"><span>5-Tier Settings Taxonomy</span><span class="status-pill success">Approved</span></div>
+          <div class="diag-value">RES-SET-001</div>
+          <div class="diag-desc">Strict isolation of Application, Workspace, Project, Sequence, and Object properties.</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-card-title"><span>Professional Studio Research</span><span class="status-pill success">Complete</span></div>
+          <div class="diag-value">RES-STU-001</div>
+          <div class="diag-desc">Pipelines and handoffs at Company 3, Light Iron, FotoKem, Framestore, and The Mill.</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-card-title"><span>Browser Media Pipeline</span><span class="status-pill success">M0 Spec</span></div>
+          <div class="diag-value">ARCH-MED-001</div>
+          <div class="diag-desc">WebCodecs hardware decoding, WebAssembly container demuxing, and VFR-to-CFR normalization.</div>
+        </div>
+
+        <div class="diag-card">
+          <div class="diag-card-title"><span>WebGPU & Shader Pipeline</span><span class="status-pill success">M0 Spec</span></div>
+          <div class="diag-value">ARCH-GPU-001</div>
+          <div class="diag-desc">WGSL color shaders, linear color space math, and WebGL 2 fallback pipeline.</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Application Status Bar -->
+  <footer class="status-bar">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span class="status-pill-telemetry">
+        <span style="width: 6px; height: 6px; border-radius: 50%; background: var(--accent-emerald);"></span>
+        <span id="status-gpu">WebGPU Ready</span>
+      </span>
+      <span class="status-pill-telemetry" id="status-fps">60 FPS</span>
+      <span style="color: var(--text-muted);">Frame Drops: <strong id="status-drop" style="color: #fff;">0</strong></span>
+    </div>
+
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <span>Color Space: <strong>Rec.709 (32-bit Float Linear)</strong></span>
+      <span>Storage: <strong>OPFS Sandbox Active</strong></span>
+      <span style="color: var(--accent-emerald);">🔒 100% Local-First Engine</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

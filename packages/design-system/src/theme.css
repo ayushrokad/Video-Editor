@@ -1,0 +1,48 @@
+:root {
+  --ff-bg-root: #0d0f12;
+  --ff-bg-panel: #15181e;
+  --ff-bg-header: #1a1e26;
+  --ff-bg-input: #101217;
+  --ff-bg-hover: #222834;
+  --ff-bg-active: #2a3242;
+
+  --ff-border-subtle: #222732;
+  --ff-border-focus: #3b82f6;
+  --ff-border-divider: #1c202a;
+
+  --ff-text-primary: #f3f4f6;
+  --ff-text-secondary: #9ca3af;
+  --ff-text-muted: #6b7280;
+
+  --ff-accent-blue: #3b82f6;
+  --ff-accent-emerald: #10b981;
+  --ff-accent-amber: #f59e0b;
+  --ff-accent-rose: #f43f5e;
+  --ff-accent-purple: #8b5cf6;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--ff-bg-root);
+  color: var(--ff-text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  user-select: none;
+  overflow: hidden;
+}
+
+/* Custom Studio Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--ff-bg-root);
+}
+::-webkit-scrollbar-thumb {
+  background: #2a3242;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3b82f6;
+}
