@@ -11,8 +11,9 @@ FRAMEFLOW bridges the gap between heavyweight desktop NLEs (Adobe Premiere Pro, 
 ### Version Releases & Branches
 All versions of the project are maintained within this single repository:
 - **[Version 1 (V1)](https://github.com/ayushrokad/Video-Editor/tree/v1):** Web Platform Foundation, Browser Diagnostics, and Competitor Intelligence Library.
-- **[Version 2 (V2 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v2):** Connected Non-Linear Editing Platform with Dynamic Panels, Real Media Bins, Multitrack Timeline, Trimming/Splitting, Contextual Inspector, and IndexedDB Persistence.
-- **Version 3 (V3 - In Progress):** Web Audio Multichannel DSP Routing & Mixing Console, WebGPU Real-Time Transition Shaders, and Export Queue.
+- **[Version 2 (V2)](https://github.com/ayushrokad/Video-Editor/tree/v2):** Connected Non-Linear Editing Platform with Dynamic Panels, Real Media Bins, Multitrack Timeline, Trimming/Splitting, Contextual Inspector, and IndexedDB Persistence.
+- **[Version 3 (V3 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v3):** Professional UI, Four-Zone Timeline, Standardized Google Material Symbols Rounded, Scoped Keyboard System, Visual Shortcuts Customizer Modal, Six Specialist Workspaces, Stereo VU Meter, and Export Queue.
+- **Version 4 (V4 - Planned):** Web Audio Multichannel DSP Routing & Mixing Console, WebGPU Real-Time Transition Shaders, and Offline Video Export Engine.
 - See [VERSIONS.md](VERSIONS.md) for the complete version changelog and branch guide.
 
 ### Key Architectural Pillars
@@ -60,28 +61,26 @@ FRAMEFLOW/
 ---
 
 ## 3. Milestones Overview
-- **M0 (Current):** Web Platform Foundation, Browser Capability Diagnostics, and Media/GPU Feasibility.
-- **M1:** Marketing Website, Session Authentication, and Dashboard.
-- **M2:** Professional Dockable Editing Interface & Layout Engine.
-- **M3:** Browser Storage (IndexedDB + OPFS) and Project Engine.
-- **M4:** Media Ingest, Metadata Extraction, and Bins.
-- **M5:** WebCodecs Frame Decoding and JKL Playback Transport.
-- **M6:** Multi-Track Timeline Engine (Ripple, Roll, Slip, Slide, Snapping).
-- **M7:** WebGPU Compositing, Blending Modes, and Real-time Shader Effects.
-- **M8:** Web Audio Engine, Multitrack Mixer, and Waveform Visualizer.
+- **M0 (Completed in V1):** Web Platform Foundation, Browser Capability Diagnostics, and Competitor Research Library.
+- **M1 (Completed in V2):** Professional Dockable Editing Interface, Dynamic Resizable Panels, and Strict 1920x1080 Viewport.
+- **M2 (Completed in V2):** Connected NLE Engine, Media Bins, Dual Monitors, Trimming Timeline, Inspector, and IndexedDB Autosave.
+- **M3 (Completed in V3 - Current):** Unified Material Symbols Rounded, Four-Zone Timeline (12 tools), Scoped Keyboard System, Visual Shortcut Customizer Modal, 6 Specialist Workspaces, Stereo VU Meter, and Export Queue.
+- **M4 (Planned in V4):** Web Audio Multichannel DSP Routing, Track Mixing Console, and Parametric EQ.
+- **M5:** WebCodecs Hardware Video Decoding & Multi-Stream JKL Transport.
+- **M6:** WebGPU Compositing, Blending Modes, and Real-Time Transition Shaders.
+- **M7:** Motion Graph Editor with Bezier Keyframe Interpolation.
+- **M8:** Full 3-Way Color Wheels & Scopes (Waveform, Vectorscope, Histogram).
 - **M9:** Client Export and Asynchronous Cloud Rendering Workers.
-- **M10:** Advanced Keyframe Graph Editor and Transitions.
-- **M11:** Color Scopes (Waveform, Vectorscope, Histogram) and Color Wheels.
-- **M12:** Cloud Projects, Team Workspaces, and Review Links.
-- **M13:** Cross-Browser Hardening and Performance Benchmarking.
+- **M10:** Cloud Projects, Team Workspaces, and Review Links.
+- **M11:** Cross-Browser Hardening and Performance Benchmarking.
 
 ---
 
-## 4. Running M0 Feasibility Suite Locally
+## 4. Running FRAMEFLOW Studio Locally
 ```bash
-# Run local HTTP server for diagnostics and feasibility suite
+# Run local HTTP server for FRAMEFLOW Studio
 node scripts/serve.js
 
-# Or open browser directly to:
+# Open browser directly to:
 http://localhost:3000
 ```
