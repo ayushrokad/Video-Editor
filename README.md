@@ -8,6 +8,13 @@
 ## 1. Product Vision & Architecture
 FRAMEFLOW bridges the gap between heavyweight desktop NLEs (Adobe Premiere Pro, DaVinci Resolve) and cloud video platforms. It provides professional editors with a familiar multi-track timeline, dual source/program monitors, sub-frame trimming, keyframed motion graphics, node-ready color grading, and comprehensive audio routing—operating directly within desktop browsers.
 
+### Version Releases & Branches
+All versions of the project are maintained within this single repository:
+- **[Version 1 (V1)](https://github.com/ayushrokad/Video-Editor/tree/v1):** Web Platform Foundation, Browser Diagnostics, and Competitor Intelligence Library.
+- **[Version 2 (V2 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v2):** Connected Non-Linear Editing Platform with Dynamic Panels, Real Media Bins, Multitrack Timeline, Trimming/Splitting, Contextual Inspector, and IndexedDB Persistence.
+- **Version 3 (V3 - In Progress):** Web Audio Multichannel DSP Routing & Mixing Console, WebGPU Real-Time Transition Shaders, and Export Queue.
+- See [VERSIONS.md](VERSIONS.md) for the complete version changelog and branch guide.
+
 ### Key Architectural Pillars
 - **Local-First Privacy & Performance:** Footage stays on the local device via the File System Access API and OPFS. Zero upload delay for local timeline assembly and playback.
 - **Hardware-Accelerated In-Browser Engine:** Video decoding via WebCodecs, timeline compositing and real-time color grading via WebGPU (with WebGL 2 fallback), and DSP/metering via the Web Audio API.
