@@ -17,20 +17,22 @@
         FRAMEFLOW
       </div>
 
-      <!-- Reorganized 13-Menu Professional Hierarchy -->
-      <nav class="menu-bar">
+      <!-- 13-Menu Professional Command Hierarchy -->
+      <nav class="menu-bar" aria-label="Application Menu">
         <!-- File -->
         <div class="menu-item">
           <div class="menu-label">File</div>
           <div class="menu-dropdown">
             <div class="menu-entry" id="m-file-new"><span>New Project</span><span class="menu-shortcut">Ctrl+Alt+N</span></div>
+            <div class="menu-entry" id="m-file-open"><span>Open Project JSON...</span></div>
             <div class="menu-entry" id="m-file-save"><span>Save Project</span><span class="menu-shortcut">Ctrl+S</span></div>
             <div class="menu-entry" id="m-file-save-as"><span>Save Project As...</span></div>
             <div class="menu-sep"></div>
             <div class="menu-entry" id="m-file-import"><span>Import Media...</span><span class="menu-shortcut">Ctrl+I</span></div>
             <div class="menu-entry" id="m-file-export"><span>Export (Deliver Workspace)</span><span class="menu-shortcut">Ctrl+M</span></div>
             <div class="menu-sep"></div>
-            <div class="menu-entry" id="m-file-archive"><span>Export Project JSON Archive</span></div>
+            <div class="menu-entry" id="m-file-project-info"><span>Project Information & Save Diagnostics</span></div>
+            <div class="menu-entry" id="m-file-archive"><span>Project Manager: Export JSON Archive</span></div>
           </div>
         </div>
         <!-- Edit -->
@@ -40,10 +42,12 @@
             <div class="menu-entry" id="m-edit-undo"><span>Undo</span><span class="menu-shortcut">Ctrl+Z</span></div>
             <div class="menu-entry" id="m-edit-redo"><span>Redo</span><span class="menu-shortcut">Ctrl+Shift+Z</span></div>
             <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-edit-cut"><span>Cut Clip</span><span class="menu-shortcut">Ctrl+X</span></div>
             <div class="menu-entry" id="m-edit-copy"><span>Copy Clip</span><span class="menu-shortcut">Ctrl+C</span></div>
             <div class="menu-entry" id="m-edit-paste"><span>Paste Clip at Playhead</span><span class="menu-shortcut">Ctrl+V</span></div>
             <div class="menu-entry" id="m-edit-delete"><span>Delete Selected Clip</span><span class="menu-shortcut">Del</span></div>
             <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-edit-prefs"><span>Preferences & Project Settings...</span></div>
             <div class="menu-entry" id="m-edit-shortcuts"><span>Keyboard Shortcuts...</span><span class="menu-shortcut">Ctrl+Alt+K</span></div>
           </div>
         </div>
@@ -53,8 +57,14 @@
           <div class="menu-dropdown">
             <div class="menu-entry" id="m-proj-settings"><span>Project Settings...</span></div>
             <div class="menu-entry" id="m-proj-rename"><span>Rename Project...</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-proj-assets"><span>Project Assets Panel</span><span class="menu-shortcut">Shift+1</span></div>
+            <div class="menu-entry" id="m-proj-browser"><span>Media Browser Panel</span></div>
             <div class="menu-entry" id="m-proj-newbin"><span>New Bin...</span><span class="menu-shortcut">Ctrl+B</span></div>
-            <div class="menu-entry" id="m-proj-media"><span>Open Media Workspace</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-proj-relink"><span>Relink Selected Offline Media...</span></div>
+            <div class="menu-entry" id="m-proj-deps"><span>Media Dependencies Panel</span></div>
+            <div class="menu-entry" id="m-proj-media"><span>Media Management Workspace</span><span class="menu-shortcut">Alt+Shift+7</span></div>
           </div>
         </div>
         <!-- Clip -->
@@ -65,6 +75,7 @@
             <div class="menu-entry" id="m-clip-overwrite"><span>Overwrite at Playhead</span><span class="menu-shortcut">.</span></div>
             <div class="menu-entry" id="m-clip-split"><span>Split Clip at Playhead</span><span class="menu-shortcut">Ctrl+K</span></div>
             <div class="menu-entry" id="m-clip-speed"><span>Speed / Duration...</span></div>
+            <div class="menu-entry" id="m-clip-enable"><span>Enable / Disable Selected Clip</span></div>
             <div class="menu-sep"></div>
             <div class="menu-entry" id="m-clip-link-clips"><span>Link Clips</span><span class="menu-shortcut">Ctrl+L</span></div>
             <div class="menu-entry" id="m-clip-unlink-clips"><span>Unlink Clips</span><span class="menu-shortcut">Ctrl+Shift+L</span></div>
@@ -72,6 +83,7 @@
             <div class="menu-entry" id="m-clip-move-sync"><span>Move Into Sync</span></div>
             <div class="menu-entry" id="m-clip-link"><span>Toggle Linked Selection</span><span class="menu-shortcut">Shift+L</span></div>
             <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-clip-reveal"><span>Reveal / Replace Source Media</span></div>
             <div class="menu-entry" id="m-clip-reset"><span>Reset Transform & Grade</span></div>
           </div>
         </div>
@@ -79,9 +91,10 @@
         <div class="menu-item">
           <div class="menu-label">Sequence</div>
           <div class="menu-dropdown">
-            <div class="menu-entry" id="m-seq-settings"><span>Sequence Settings...</span></div>
             <div class="menu-entry" id="m-seq-new"><span>New Sequence...</span></div>
+            <div class="menu-entry" id="m-seq-settings"><span>Sequence Settings...</span></div>
             <div class="menu-entry" id="m-seq-duplicate"><span>Duplicate Sequence</span></div>
+            <div class="menu-sep"></div>
             <div class="menu-entry" id="m-seq-render-preview"><span>Render Sequence Preview</span></div>
           </div>
         </div>
@@ -89,12 +102,18 @@
         <div class="menu-item">
           <div class="menu-label">Timeline</div>
           <div class="menu-dropdown">
-            <div class="menu-entry" id="m-time-snap"><span>Toggle Snapping</span><span class="menu-shortcut">S</span></div>
             <div class="menu-entry" id="m-time-add-v"><span>Add Video Track</span></div>
             <div class="menu-entry" id="m-time-add-a"><span>Add Audio Track</span></div>
             <div class="menu-sep"></div>
-            <div class="menu-entry" id="m-time-marker"><span>Add Marker at Playhead</span><span class="menu-shortcut">M</span></div>
+            <div class="menu-entry" id="m-time-snap"><span>Toggle Snapping</span><span class="menu-shortcut">S</span></div>
+            <div class="menu-entry" id="m-time-synclock"><span>Toggle Track Sync Lock</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-time-zoom-in"><span>Zoom In Timeline</span><span class="menu-shortcut">=</span></div>
+            <div class="menu-entry" id="m-time-zoom-out"><span>Zoom Out Timeline</span><span class="menu-shortcut">-</span></div>
             <div class="menu-entry" id="m-time-fit"><span>Fit Sequence to View</span><span class="menu-shortcut">\</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-time-marker"><span>Add Marker at Playhead</span><span class="menu-shortcut">M</span></div>
+            <div class="menu-entry" id="m-time-index"><span>Open Timeline Index</span></div>
           </div>
         </div>
         <!-- Graphics -->
@@ -102,81 +121,82 @@
           <div class="menu-label">Graphics</div>
           <div class="menu-dropdown">
             <div class="menu-entry" id="m-gfx-title"><span>New Title Overlay Clip</span><span class="menu-shortcut">T</span></div>
+            <div class="menu-entry" id="m-gfx-essential"><span>Open Essential Graphics Panel</span></div>
             <div class="menu-entry" id="m-gfx-safe"><span>Toggle Safe Margins Overlay</span></div>
-            <div class="menu-entry" id="m-gfx-motion"><span>Open Motion Workspace</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-gfx-workspace"><span>Open Graphics Workspace</span><span class="menu-shortcut">Alt+Shift+5</span></div>
           </div>
         </div>
         <!-- Effects -->
         <div class="menu-item">
           <div class="menu-label">Effects</div>
           <div class="menu-dropdown">
-            <div class="menu-entry" id="m-fx-transitions"><span>Transitions Browser</span></div>
-            <div class="menu-entry" id="m-fx-apply-dissolve"><span>Apply Cross Dissolve to Clip</span></div>
+            <div class="menu-entry" id="m-fx-library"><span>Effects Library Panel</span><span class="menu-shortcut">Shift+7</span></div>
+            <div class="menu-entry" id="m-fx-controls"><span>Effect Controls Panel</span><span class="menu-shortcut">Shift+5</span></div>
+            <div class="menu-entry" id="m-fx-transitions"><span>Transition Browser Panel</span></div>
             <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-fx-apply-dissolve"><span>Apply Cross Dissolve to Clip</span></div>
             <div class="menu-entry" id="m-fx-reset"><span>Reset Clip Effects</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-fx-workspace"><span>Open Effects Workspace</span><span class="menu-shortcut">Alt+Shift+2</span></div>
           </div>
         </div>
         <!-- Audio -->
         <div class="menu-item">
           <div class="menu-label">Audio</div>
           <div class="menu-dropdown">
-            <div class="menu-entry" id="m-audio-mixer"><span>Open Audio Mixer Workspace</span></div>
-            <div class="menu-entry" id="m-audio-routing"><span>Track Routing & Buses</span></div>
+            <div class="menu-entry" id="m-audio-mixer"><span>Audio Mixer Panel</span><span class="menu-shortcut">Shift+6</span></div>
+            <div class="menu-entry" id="m-audio-routing"><span>Audio Routing & EQ Panel</span></div>
+            <div class="menu-entry" id="m-audio-meters"><span>Audio Meters Panel</span></div>
+            <div class="menu-entry" id="m-audio-loudness-panel"><span>Loudness Analysis Panel</span></div>
+            <div class="menu-sep"></div>
             <div class="menu-entry" id="m-audio-loudness"><span>Reset Loudness Measurement</span></div>
+            <div class="menu-entry" id="m-audio-workspace"><span>Open Audio Workspace</span><span class="menu-shortcut">Alt+Shift+4</span></div>
           </div>
         </div>
         <!-- Color -->
         <div class="menu-item">
           <div class="menu-label">Color</div>
           <div class="menu-dropdown">
-            <div class="menu-entry" id="m-color-wheels"><span>Color Wheels & Scopes Workspace</span></div>
+            <div class="menu-entry" id="m-color-controls"><span>Color Controls Panel</span></div>
+            <div class="menu-entry" id="m-color-wheels"><span>Color Wheels Panel</span></div>
+            <div class="menu-entry" id="m-color-luts"><span>LUT Browser Panel</span></div>
+            <div class="menu-entry" id="m-color-scopes"><span>Video Scopes Panel</span></div>
+            <div class="menu-sep"></div>
             <div class="menu-entry" id="m-color-reset"><span>Reset Primary Color Grade</span></div>
+            <div class="menu-entry" id="m-color-workspace"><span>Open Color Workspace</span><span class="menu-shortcut">Alt+Shift+3</span></div>
           </div>
         </div>
         <!-- View -->
         <div class="menu-item">
           <div class="menu-label">View</div>
           <div class="menu-dropdown">
-            <div class="menu-entry" id="m-view-split"><span>Toggle Split Monitor View</span></div>
+            <div class="menu-entry" id="m-view-source"><span>Focus Source Monitor</span><span class="menu-shortcut">Shift+2</span></div>
+            <div class="menu-entry" id="m-view-program"><span>Focus Program Monitor</span><span class="menu-shortcut">Shift+4</span></div>
+            <div class="menu-entry" id="m-view-split"><span>Toggle Dual Viewer Layout</span><span class="menu-shortcut">Alt+Shift+9</span></div>
+            <div class="menu-sep"></div>
             <div class="menu-entry" id="m-view-safe"><span>Toggle Title/Action Safe Margins</span></div>
+            <div class="menu-entry" id="m-view-overlays"><span>Toggle Program Overlays HUD</span></div>
+            <div class="menu-entry" id="m-view-compare"><span>Toggle Before/After Grade Wipe</span></div>
             <div class="menu-sep"></div>
             <div class="menu-entry" id="m-view-zoom-in"><span>Zoom In Timeline</span><span class="menu-shortcut">=</span></div>
             <div class="menu-entry" id="m-view-zoom-out"><span>Zoom Out Timeline</span><span class="menu-shortcut">-</span></div>
             <div class="menu-entry" id="m-view-fullscreen"><span>Toggle Browser Fullscreen</span></div>
           </div>
         </div>
-        <!-- Window -->
+        <!-- Window (Central Workspace & Panel Management Menu — dynamically rendered) -->
         <div class="menu-item">
           <div class="menu-label">Window</div>
-          <div class="menu-dropdown" id="window-menu-dropdown">
-            <div class="menu-section-label">PANELS</div>
-            <div class="menu-entry" data-panel-toggle="panel-inspector"><span id="chk-panel-inspector">✓ Properties</span></div>
-            <div class="menu-entry" data-panel-toggle="panel-project"><span id="chk-panel-project">✓ Project / Media Browser</span></div>
-            <div class="menu-entry" data-panel-toggle="panel-effects"><span id="chk-panel-effects">  Effects Library</span></div>
-            <div class="menu-entry" data-panel-toggle="monitors-pane"><span id="chk-monitors-pane">✓ Source / Program Monitors</span></div>
-            <div class="menu-entry" data-panel-toggle="panel-timeline"><span id="chk-panel-timeline">✓ Multitrack Timeline</span></div>
-            <div class="menu-entry" data-panel-toggle="panel-history"><span id="chk-panel-history">  History</span></div>
-            <div class="menu-entry" data-panel-toggle="panel-markers"><span id="chk-panel-markers">  Markers</span></div>
-            <div class="menu-sep"></div>
-            <div class="menu-section-label">LAYOUT PRESETS</div>
-            <div class="menu-entry" id="win-preset-default"><span>Default Editing</span></div>
-            <div class="menu-entry" id="win-preset-compact"><span>Compact Editing (Hide Properties)</span></div>
-            <div class="menu-entry" id="win-preset-dual"><span>Dual Monitor (Split View)</span></div>
-            <div class="menu-sep"></div>
-            <div class="menu-section-label">WORKSPACES</div>
-            <div class="menu-entry" id="win-save-ws"><span>Save Workspace Layout...</span></div>
-            <div id="custom-workspaces-menu-list"></div>
-            <div class="menu-sep"></div>
-            <div class="menu-entry" id="win-reset-current-ws"><span>Reset Current Workspace</span></div>
-            <div class="menu-entry" id="win-reset-all-ws"><span>Reset All Workspaces</span></div>
-          </div>
+          <div class="menu-dropdown window-menu-wide" id="window-menu-dropdown"></div>
         </div>
         <!-- Help -->
         <div class="menu-item">
           <div class="menu-label">Help</div>
           <div class="menu-dropdown">
+            <div class="menu-entry" id="m-help-docs"><span>Workspace & Docking Guide...</span></div>
             <div class="menu-entry" id="m-help-shortcuts"><span>Keyboard Shortcuts...</span><span class="menu-shortcut">Ctrl+Alt+K</span></div>
             <div class="menu-entry" id="m-help-diagnostics"><span>Runtime Engine Diagnostics...</span></div>
+            <div class="menu-entry" id="m-help-storage"><span>Storage Diagnostics Panel</span></div>
             <div class="menu-sep"></div>
             <div class="menu-entry" id="m-help-about"><span>About FRAMEFLOW Studio</span></div>
           </div>
@@ -184,26 +204,29 @@
       </nav>
     </div>
 
-    <!-- Center: 6 Specialist Workspace Tabs -->
-    <div class="workspace-switcher" id="workspace-bar">
-      <button class="ws-tab" data-ws="media">Media</button>
-      <button class="ws-tab active" data-ws="edit">Edit</button>
-      <button class="ws-tab" data-ws="motion">Motion</button>
-      <button class="ws-tab" data-ws="color">Color</button>
-      <button class="ws-tab" data-ws="audio">Audio</button>
-      <button class="ws-tab" data-ws="deliver">Deliver</button>
+    <!-- Center: Reorderable Workspace Bar + Selector Dropdown -->
+    <div class="workspace-bar-wrap">
+      <div class="workspace-switcher" id="workspace-bar" role="tablist" aria-label="Workspaces"></div>
+      <div class="workspace-more-wrap">
+        <button class="ws-more-btn" id="btn-ws-more" data-tooltip="More Workspaces & Save/Manage Layouts">
+          <span class="icon icon-sm">dashboard_customize</span>
+          <span class="icon icon-sm">arrow_drop_down</span>
+        </button>
+        <div class="ws-more-dropdown" id="ws-more-dropdown"></div>
+      </div>
     </div>
 
-    <!-- Right: Project Info, Undo/Redo, Properties Toggle & Deliver -->
+    <!-- Right: Project Info, Undo/Redo, Properties Toggle & Export -->
     <div class="header-right-group">
       <div class="project-title-badge">
         <span class="project-name" id="project-title-disp">Untitled Project</span>
-        <span class="save-status-indicator saved" id="save-status-badge">● Saved</span>
+        <span class="save-status-indicator saved" id="save-status-badge" title="All changes saved">● Saved</span>
+        <button class="action-btn-compact danger" id="btn-retry-save" style="display: none; padding: 1px 6px; font-size: 10.5px;">Retry</button>
       </div>
       <div class="header-divider"></div>
       <button class="action-btn-compact" id="btn-undo" data-tooltip="Undo (Ctrl+Z)"><span class="icon icon-sm">undo</span></button>
       <button class="action-btn-compact" id="btn-redo" data-tooltip="Redo (Ctrl+Shift+Z)"><span class="icon icon-sm">redo</span></button>
-      <button class="action-btn-compact header-toggle-active" id="btn-toggle-properties" data-tooltip="Show / Hide Properties Panel">
+      <button class="action-btn-compact header-toggle-active" id="btn-toggle-properties" data-tooltip="Toggle Properties Panel (Shift+8)">
         <span class="icon icon-sm">tune</span> Properties
       </button>
       <button class="action-btn-compact primary" id="btn-goto-deliver" data-tooltip="Open Deliver Workspace (Ctrl+M)">
@@ -212,93 +235,148 @@
     </div>
   </header>
 
-  <!-- Hidden Local File Inputs (Import & Relink) -->
+  <!-- Hidden Local File Inputs (Import Media, Relink, Open Project JSON, Import Shortcuts) -->
   <input type="file" id="video-file-input" accept="video/*,audio/*,image/*" multiple style="display: none;">
   <input type="file" id="relink-file-input" accept="video/*,audio/*,image/*" style="display: none;">
+  <input type="file" id="open-project-file-input" accept=".json,.frameflow.json" style="display: none;">
+  <input type="file" id="import-shortcuts-file-input" accept=".json" style="display: none;">
 
-  <!-- 2. Dynamic 6-Workspace Shell -->
-  <main class="workspace-shell" id="workspace-shell" data-workspace="edit">
+  <!-- 2. Recursive Customizable Dock Workspace Shell -->
+  <main class="workspace-shell" id="workspace-shell" data-workspace="edit"></main>
 
-    <!-- TOP ROW: Contextual Specialist Panels -->
-    <div class="workspace-top-row" id="workspace-top-row">
+  <!-- Floating Panels Layer & Live Drag-and-Drop Docking Previews -->
+  <div id="floating-panels-layer" class="floating-panels-layer"></div>
+  <div id="dock-drop-overlay" class="dock-drop-overlay" style="display: none;"></div>
+  <div id="dock-drag-ghost" class="dock-drag-ghost" style="display: none;"></div>
 
-      <!-- PANEL A: Project / Media Browser (Edit, Media) -->
-      <section class="panel col-left-slot" id="panel-project">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active" id="tab-project-title">
-              <span class="icon icon-sm">folder_open</span> <span id="project-panel-label">Project</span>
+  <!-- Connected Panel Parking Lot (keeps live <video>, <canvas>, and panel DOM alive across workspace & tab switches!) -->
+  <div id="panel-parking-lot" style="display: none;" aria-hidden="true">
+
+    <!-- VIEW: Project Panel (Bins & Media Assets) -->
+    <div class="panel-view-root" data-panel-id="project" id="view-project">
+      <div class="search-filter-strip">
+        <div class="search-input-wrapper">
+          <span class="icon icon-sm" style="color: var(--text-muted); margin-right: 4px;">search</span>
+          <input type="text" id="asset-search-input" placeholder="Filter media, bins, codecs...">
+        </div>
+        <button class="panel-action-btn" id="btn-add-bin" data-tooltip="New Bin (Ctrl+B)"><span class="icon icon-sm">create_new_folder</span></button>
+        <button class="panel-action-btn" id="btn-import-media" data-tooltip="Import Media (Ctrl+I)"><span class="icon icon-sm">file_upload</span></button>
+      </div>
+      <div class="panel-body" style="display: flex; flex-direction: column;">
+        <div class="asset-dropzone" id="media-dropzone">
+          <span class="icon" style="color: var(--accent); font-size: 20px;">cloud_upload</span>
+          <div style="font-size: 11.5px; font-weight: 600; color: var(--text-primary); margin-top: 2px;">Import Media</div>
+          <div style="font-size: 10.5px; color: var(--text-muted);">Drop video, audio, images or click</div>
+        </div>
+        <div id="assets-list" style="flex: 1; overflow-y: auto; padding: 0 6px 6px;"></div>
+      </div>
+      <div class="panel-footer-strip" id="project-panel-footer">
+        <span>0 assets</span>
+        <span>Local-First</span>
+      </div>
+    </div>
+
+    <!-- VIEW: Media Browser (Tabular Media Ingest & Status View) -->
+    <div class="panel-view-root" data-panel-id="media-browser" id="view-media-browser">
+      <div class="search-filter-strip">
+        <div class="search-input-wrapper">
+          <span class="icon icon-sm" style="color: var(--text-muted); margin-right: 4px;">search</span>
+          <input type="text" id="media-browser-search-input" placeholder="Search footage by name or codec...">
+        </div>
+        <button class="action-btn-compact primary" id="btn-mb-import" data-tooltip="Import Local Media">
+          <span class="icon icon-sm">file_upload</span> Import
+        </button>
+      </div>
+      <div class="panel-body" id="media-browser-list"></div>
+    </div>
+
+    <!-- VIEW: Source Monitor (Original Media Viewer) -->
+    <div class="panel-view-root" data-panel-id="source-monitor" id="view-source-monitor">
+      <div class="monitor-viewport" id="viewport-source" style="display: flex;">
+        <div class="source-info-bar" id="source-info-bar" style="display: none;">
+          <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+            <span style="color: var(--accent); font-weight: 700;">SOURCE:</span>
+            <span id="source-clip-title" style="color: #fff; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</span>
+            <span id="source-meta-pill" style="font-size: 10px; color: var(--text-muted); font-family: monospace;"></span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+            <select id="source-audio-channel" class="compact-select" title="Source Audio Channels">
+              <option value="stereo">Audio: Stereo (L+R)</option>
+              <option value="left">Audio: Left Ch 1</option>
+              <option value="right">Audio: Right Ch 2</option>
+              <option value="mute">Audio: Muted</option>
+            </select>
+            <span class="timecode-readout" id="source-tc-duration">00:00:00:00 / 00:00:00:00</span>
+          </div>
+        </div>
+
+        <div class="monitor-canvas-container">
+          <video id="source-video-element" class="monitor-view-element" playsinline style="display: none;"></video>
+
+          <div class="monitor-empty-card" id="source-empty-card">
+            <span class="icon icon-lg" style="color: var(--accent);">video_file</span>
+            <div class="monitor-empty-title">No Source Media Loaded</div>
+            <div class="monitor-empty-desc">Select or double-click media in Project or Media Browser to inspect original footage, mark In/Out, and Insert or Overwrite to Timeline.</div>
+            <button class="action-btn-compact primary" id="src-empty-import-btn"><span class="icon icon-sm">file_upload</span> Import Media</button>
+          </div>
+
+          <div class="monitor-empty-card" id="source-missing-card" style="display: none; border-color: var(--error);">
+            <span class="icon icon-lg" style="color: var(--error);">link_off</span>
+            <div class="monitor-empty-title" style="color: var(--error);">Media Offline — Relink Required</div>
+            <div class="monitor-empty-desc" id="source-missing-desc">Browser storage no longer holds the original media file. Relink it without losing timeline edits.</div>
+            <button class="action-btn-compact primary" id="src-btn-relink"><span class="icon icon-sm">link</span> Relink Media...</button>
+          </div>
+        </div>
+
+        <div class="source-scrubber-bar" id="source-scrubber-bar" style="display: none;" title="Scrub Source Media">
+          <div class="source-scrub-track" id="source-scrub-track">
+            <div class="source-inout-range" id="source-inout-range" style="left: 0%; width: 100%;"></div>
+            <div class="source-scrub-thumb" id="source-scrub-thumb" style="left: 0%;"></div>
+          </div>
+        </div>
+
+        <div class="monitor-controls-strip" id="source-controls-strip">
+          <div style="display: flex; gap: 2px; align-items: center;">
+            <button class="ctrl-btn" id="src-btn-goto-in" data-tooltip="Go to In Point (Shift+I)"><span class="icon icon-sm">skip_previous</span></button>
+            <button class="ctrl-btn" id="src-btn-mark-in" data-tooltip="Mark In (I)"><span class="icon icon-sm">first_page</span></button>
+            <button class="ctrl-btn" id="src-btn-mark-out" data-tooltip="Mark Out (O)"><span class="icon icon-sm">last_page</span></button>
+            <button class="ctrl-btn" id="src-btn-goto-out" data-tooltip="Go to Out Point (Shift+O)"><span class="icon icon-sm">skip_next</span></button>
+            <button class="ctrl-btn" id="src-btn-clear-io" data-tooltip="Clear In/Out (Alt+X)"><span class="icon icon-sm">backspace</span></button>
+          </div>
+
+          <div style="display: flex; gap: 3px; align-items: center;">
+            <button class="ctrl-btn" id="src-btn-step-prev" data-tooltip="Step 1 Frame Back"><span class="icon icon-sm">chevron_left</span></button>
+            <button class="ctrl-btn primary" id="src-btn-play" data-tooltip="Play / Pause Source"><span class="icon icon-sm" id="src-play-icon">play_arrow</span></button>
+            <button class="ctrl-btn" id="src-btn-step-next" data-tooltip="Step 1 Frame Forward"><span class="icon icon-sm">chevron_right</span></button>
+          </div>
+
+          <div style="display: flex; gap: 4px; align-items: center;">
+            <div class="source-drag-pill" id="src-drag-range-handle" draggable="true" data-tooltip="Drag Marked Range to Timeline">
+              <span class="icon icon-sm">drag_indicator</span> Range
+            </div>
+            <button class="action-btn-compact primary" id="src-btn-insert" data-tooltip="Insert Source Range (,)">
+              <span class="icon icon-sm">input</span> Insert
+            </button>
+            <button class="action-btn-compact" id="src-btn-overwrite" data-tooltip="Overwrite at Playhead (.)" style="border-color: var(--border);">
+              <span class="icon icon-sm">file_download_done</span> Overwrite
             </button>
           </div>
-          <div class="panel-actions">
-            <button class="panel-action-btn" id="btn-add-bin" data-tooltip="New Bin (Ctrl+B)"><span class="icon icon-sm">create_new_folder</span></button>
-            <button class="panel-action-btn" id="btn-import-media" data-tooltip="Import Media (Ctrl+I)"><span class="icon icon-sm">file_upload</span></button>
-            <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
-            <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
-          </div>
         </div>
-        <div class="search-filter-strip">
-          <div class="search-input-wrapper">
-            <span class="icon icon-sm" style="color: var(--text-muted); margin-right: 4px;">search</span>
-            <input type="text" id="asset-search-input" placeholder="Filter media, bins, codecs...">
-          </div>
-        </div>
-        <div class="panel-body" style="display: flex; flex-direction: column;">
-          <div class="asset-dropzone" id="media-dropzone">
-            <span class="icon" style="color: var(--accent); font-size: 20px;">cloud_upload</span>
-            <div style="font-size: 11.5px; font-weight: 600; color: var(--text-primary); margin-top: 2px;">Import Media</div>
-            <div style="font-size: 10.5px; color: var(--text-muted);">Drop video, audio, images or click</div>
-          </div>
-          <div id="assets-list" style="flex: 1; overflow-y: auto; padding: 0 6px 6px;"></div>
-        </div>
-        <div class="panel-footer-strip" id="project-panel-footer">
-          <span>0 assets</span>
-          <span>Local-First</span>
-        </div>
-      </section>
+      </div>
+    </div>
 
-      <!-- PANEL B: Effects & Transitions Browser (Motion Workspace) -->
-      <section class="panel col-left-slot hidden-panel" id="panel-effects">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm">auto_fix_high</span> Transitions & Effects</button>
+    <!-- VIEW: Program Monitor (Edited Sequence Composition) -->
+    <div class="panel-view-root" data-panel-id="program-monitor" id="view-program-monitor">
+      <div class="monitor-viewport" id="viewport-program" style="display: flex;">
+        <div class="monitor-subtoolbar">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="timecode-readout" id="active-monitor-timecode">00:00:00:00</span>
+            <span style="font-size: 10.5px; color: var(--text-muted);" id="program-tab-label">Master Sequence</span>
           </div>
-          <div class="panel-actions">
-            <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
-            <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
-          </div>
-        </div>
-        <div class="fx-category-pills" id="fx-category-pills"></div>
-        <div class="panel-body" id="fx-catalog-list" style="padding: 8px;"></div>
-      </section>
-
-      <!-- PANEL C: Shot Clips & LUT Gallery (Color Workspace) -->
-      <section class="panel col-left-slot hidden-panel" id="panel-color-clips">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm">collections</span> Shots & LUTs</button>
-          </div>
-          <div class="panel-actions">
-            <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
-          </div>
-        </div>
-        <div class="panel-body" id="color-clips-body" style="padding: 8px;"></div>
-      </section>
-
-      <!-- Splitter Left -->
-      <div class="splitter-h" id="splitter-left"></div>
-
-      <!-- PANEL D: Unified Tabbed / Split Monitor Group (Center across Media, Edit, Motion, Color, Deliver) -->
-      <section class="panel col-center-slot" id="monitors-pane">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab" id="tab-monitor-source"><span class="icon icon-sm">video_file</span> Source</button>
-            <button class="panel-tab active" id="tab-monitor-program"><span class="icon icon-sm">live_tv</span> <span id="program-tab-label">Program: Master</span></button>
-          </div>
-          <div class="panel-actions" style="gap: 5px;">
-            <button class="action-btn-compact" id="btn-toggle-split-view" data-tooltip="Toggle Split / Single Monitor">
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <button class="action-btn-compact" id="btn-toggle-split-view" data-tooltip="Side-by-Side Dual Viewer">
               <span class="icon icon-sm">view_column</span>
-              <span id="split-view-btn-label">Split View</span>
+              <span id="split-view-btn-label">Dual View</span>
             </button>
             <select id="monitor-fit-select" class="compact-select" title="Viewport Zoom">
               <option value="fit">Fit</option>
@@ -310,213 +388,256 @@
               <option value="1/2" selected>1/2</option>
               <option value="1/4">1/4</option>
             </select>
-            <span class="timecode-readout" id="active-monitor-timecode">00:00:00:00</span>
-            <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
           </div>
         </div>
 
-        <div class="monitors-viewports-container" id="monitors-viewports-container">
-          <!-- SOURCE MONITOR VIEWPORT (Original Media Inspection) -->
-          <div class="monitor-viewport" id="viewport-source" style="display: none;">
-            <!-- Source Media Metadata & Audio Channel Strip -->
-            <div class="source-info-bar" id="source-info-bar" style="display: none;">
-              <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
-                <span style="color: var(--accent); font-weight: 700;">SOURCE:</span>
-                <span id="source-clip-title" style="color: #fff; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</span>
-                <span id="source-meta-pill" style="font-size: 10px; color: var(--text-muted); font-family: monospace;"></span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-                <select id="source-audio-channel" class="compact-select" title="Source Audio Channels">
-                  <option value="stereo">Audio: Stereo (L+R)</option>
-                  <option value="left">Audio: Left Ch 1</option>
-                  <option value="right">Audio: Right Ch 2</option>
-                  <option value="mute">Audio: Muted</option>
-                </select>
-                <span class="timecode-readout" id="source-tc-duration">00:00:00:00 / 00:00:00:00</span>
-              </div>
-            </div>
-
-            <div class="monitor-canvas-container">
-              <video id="source-video-element" class="monitor-view-element" playsinline style="display: none;"></video>
-              
-              <!-- Empty State -->
-              <div class="monitor-empty-card" id="source-empty-card">
-                <span class="icon icon-lg" style="color: var(--accent);">video_file</span>
-                <div class="monitor-empty-title">No Source Media Loaded</div>
-                <div class="monitor-empty-desc">Select or double-click media in Project panel to inspect original footage, set In/Out ranges, and insert or overwrite into the timeline.</div>
-                <button class="action-btn-compact primary" id="src-empty-import-btn"><span class="icon icon-sm">file_upload</span> Import Media</button>
-              </div>
-
-              <!-- Missing Media / Relink Prompt -->
-              <div class="monitor-empty-card" id="source-missing-card" style="display: none; border-color: var(--error);">
-                <span class="icon icon-lg" style="color: var(--error);">link_off</span>
-                <div class="monitor-empty-title" style="color: var(--error);">Media Offline — Relink Required</div>
-                <div class="monitor-empty-desc" id="source-missing-desc">Browser storage no longer holds the original media file. Relink it without losing timeline edits.</div>
-                <button class="action-btn-compact primary" id="src-btn-relink"><span class="icon icon-sm">link</span> Relink Media...</button>
-              </div>
-            </div>
-
-            <!-- Interactive Source Scrubber & In/Out Range Bar -->
-            <div class="source-scrubber-bar" id="source-scrubber-bar" style="display: none;" title="Scrub Source Media">
-              <div class="source-scrub-track" id="source-scrub-track">
-                <div class="source-inout-range" id="source-inout-range" style="left: 0%; width: 100%;"></div>
-                <div class="source-scrub-thumb" id="source-scrub-thumb" style="left: 0%;"></div>
-              </div>
-            </div>
-
-            <!-- Source-Specific Controls (In/Out, Frame Step, Insert, Overwrite, Drag Range) -->
-            <div class="monitor-controls-strip" id="source-controls-strip">
-              <div style="display: flex; gap: 2px; align-items: center;">
-                <button class="ctrl-btn" id="src-btn-goto-in" data-tooltip="Go to In Point (Shift+I)"><span class="icon icon-sm">skip_previous</span></button>
-                <button class="ctrl-btn" id="src-btn-mark-in" data-tooltip="Mark In (I)"><span class="icon icon-sm">first_page</span></button>
-                <button class="ctrl-btn" id="src-btn-mark-out" data-tooltip="Mark Out (O)"><span class="icon icon-sm">last_page</span></button>
-                <button class="ctrl-btn" id="src-btn-goto-out" data-tooltip="Go to Out Point (Shift+O)"><span class="icon icon-sm">skip_next</span></button>
-                <button class="ctrl-btn" id="src-btn-clear-io" data-tooltip="Clear In/Out (Alt+X)"><span class="icon icon-sm">backspace</span></button>
-              </div>
-
-              <div style="display: flex; gap: 3px; align-items: center;">
-                <button class="ctrl-btn" id="src-btn-step-prev" data-tooltip="Step 1 Frame Back"><span class="icon icon-sm">chevron_left</span></button>
-                <button class="ctrl-btn primary" id="src-btn-play" data-tooltip="Play / Pause Source"><span class="icon icon-sm" id="src-play-icon">play_arrow</span></button>
-                <button class="ctrl-btn" id="src-btn-step-next" data-tooltip="Step 1 Frame Forward"><span class="icon icon-sm">chevron_right</span></button>
-              </div>
-
-              <div style="display: flex; gap: 4px; align-items: center;">
-                <div class="source-drag-pill" id="src-drag-range-handle" draggable="true" data-tooltip="Drag Marked Range to Timeline">
-                  <span class="icon icon-sm">drag_indicator</span> Range
-                </div>
-                <button class="action-btn-compact primary" id="src-btn-insert" data-tooltip="Insert Source Range (,)">
-                  <span class="icon icon-sm">input</span> Insert
-                </button>
-                <button class="action-btn-compact" id="src-btn-overwrite" data-tooltip="Overwrite at Playhead (.)" style="border-color: var(--border);">
-                  <span class="icon icon-sm">file_download_done</span> Overwrite
-                </button>
-              </div>
-            </div>
+        <div class="monitor-canvas-container" id="program-canvas-wrap">
+          <canvas id="program-render-canvas" class="monitor-view-element" width="1920" height="1080"></canvas>
+          <div class="safe-margins-overlay" id="safe-margins-overlay"></div>
+          <div class="program-overlays-hud" id="program-overlays-hud">
+            <span id="hud-clip-name">PROGRAM: Master Sequence</span>
+            <span id="hud-timecode">00:00:00:00</span>
           </div>
-
-          <div class="splitter-h" id="splitter-monitors" style="display: none;"></div>
-
-          <!-- PROGRAM MONITOR VIEWPORT (Edited Sequence Composition) -->
-          <div class="monitor-viewport" id="viewport-program" style="display: flex;">
-            <div class="monitor-canvas-container" id="program-canvas-wrap">
-              <canvas id="program-render-canvas" class="monitor-view-element" width="1920" height="1080"></canvas>
-              <div class="safe-margins-overlay" id="safe-margins-overlay"></div>
-              <div class="program-overlays-hud" id="program-overlays-hud">
-                <span id="hud-clip-name">PROGRAM: Master Sequence</span>
-                <span id="hud-timecode">00:00:00:00</span>
-              </div>
-              <div class="monitor-empty-card" id="program-empty-card">
-                <span class="icon icon-lg" style="color: var(--accent);">live_tv</span>
-                <div class="monitor-empty-title">Sequence is Empty</div>
-                <div class="monitor-empty-desc">Import footage and insert from Source Monitor or drag assets onto the Timeline tracks below.</div>
-                <div style="display: flex; gap: 6px;">
-                  <button class="action-btn-compact primary" id="prg-empty-import-btn"><span class="icon icon-sm">file_upload</span> Import Footage</button>
-                  <button class="action-btn-compact" id="prg-empty-title-btn"><span class="icon icon-sm">title</span> Add Title</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Program-Specific Controls (Sequence Transport, Loop, Safe Margins, Overlays, Compare, Fullscreen) -->
-            <div class="monitor-controls-strip">
-              <div style="display: flex; gap: 2px; align-items: center;">
-                <button class="ctrl-btn" id="prg-btn-prev" data-tooltip="Step Back 5 Frames (Shift+Left)"><span class="icon icon-sm">fast_rewind</span></button>
-                <button class="ctrl-btn" id="prg-btn-step-prev" data-tooltip="Step 1 Frame Back (Left)"><span class="icon icon-sm">skip_previous</span></button>
-                <button class="ctrl-btn primary" id="prg-btn-play" data-tooltip="Play / Pause Sequence (Space)"><span class="icon icon-sm" id="prg-play-icon">play_arrow</span></button>
-                <button class="ctrl-btn" id="prg-btn-step-next" data-tooltip="Step 1 Frame Forward (Right)"><span class="icon icon-sm">skip_next</span></button>
-                <button class="ctrl-btn" id="prg-btn-next" data-tooltip="Step Forward 5 Frames (Shift+Right)"><span class="icon icon-sm">fast_forward</span></button>
-              </div>
-
-              <div style="font-size: 11px; color: var(--text-secondary); font-family: ui-monospace, monospace;" id="sequence-name-disp">
-                00:00:00:00 / 00:01:00:00
-              </div>
-
-              <div style="display: flex; gap: 2px; align-items: center;">
-                <button class="ctrl-btn" id="prg-btn-loop" data-tooltip="Loop Playback"><span class="icon icon-sm">repeat</span></button>
-                <button class="ctrl-btn" id="btn-toggle-safe-margins" data-tooltip="Safe Margins & Guides"><span class="icon icon-sm">crop_free</span></button>
-                <button class="ctrl-btn" id="prg-btn-overlays" data-tooltip="Toggle Sequence Overlays HUD"><span class="icon icon-sm">layers</span></button>
-                <button class="ctrl-btn" id="prg-btn-compare" data-tooltip="Before / After Grade Compare Wipe"><span class="icon icon-sm">compare</span></button>
-                <button class="ctrl-btn" id="prg-btn-fullscreen" data-tooltip="Fullscreen Program Preview"><span class="icon icon-sm">open_in_full</span></button>
-              </div>
+          <div class="monitor-empty-card" id="program-empty-card">
+            <span class="icon icon-lg" style="color: var(--accent);">live_tv</span>
+            <div class="monitor-empty-title">Sequence is Empty</div>
+            <div class="monitor-empty-desc">Import footage and insert from Source Monitor or drag assets onto the Timeline tracks below.</div>
+            <div style="display: flex; gap: 6px;">
+              <button class="action-btn-compact primary" id="prg-empty-import-btn"><span class="icon icon-sm">file_upload</span> Import Footage</button>
+              <button class="action-btn-compact" id="prg-empty-title-btn"><span class="icon icon-sm">title</span> Add Title</button>
             </div>
           </div>
         </div>
-      </section>
 
-      <!-- Splitter Right -->
-      <div class="splitter-h" id="splitter-right"></div>
-
-      <!-- PANEL E: Context-Aware Optional Properties Panel (5 Tabs, Pin, Float, Close) -->
-      <section class="panel col-right-slot" id="panel-inspector">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm" id="inspector-header-icon">tune</span> <span id="inspector-header-title">Properties</span></button>
+        <div class="monitor-controls-strip">
+          <div style="display: flex; gap: 2px; align-items: center;">
+            <button class="ctrl-btn" id="prg-btn-prev" data-tooltip="Step Back 5 Frames (Shift+Left)"><span class="icon icon-sm">fast_rewind</span></button>
+            <button class="ctrl-btn" id="prg-btn-step-prev" data-tooltip="Step 1 Frame Back (Left)"><span class="icon icon-sm">skip_previous</span></button>
+            <button class="ctrl-btn primary" id="prg-btn-play" data-tooltip="Play / Pause Sequence (Space)"><span class="icon icon-sm" id="prg-play-icon">play_arrow</span></button>
+            <button class="ctrl-btn" id="prg-btn-step-next" data-tooltip="Step 1 Frame Forward (Right)"><span class="icon icon-sm">skip_next</span></button>
+            <button class="ctrl-btn" id="prg-btn-next" data-tooltip="Step Forward 5 Frames (Shift+Right)"><span class="icon icon-sm">fast_forward</span></button>
           </div>
-          <div class="panel-actions">
-            <button class="panel-action-btn" id="btn-pin-properties" data-tooltip="Pin Inspected Object"><span class="icon icon-sm">push_pin</span></button>
-            <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
-            <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
-            <button class="panel-action-btn btn-close-panel" data-close-panel="panel-inspector" data-tooltip="Close Properties"><span class="icon icon-sm">close</span></button>
-          </div>
-        </div>
-        <div class="props-tabs-bar" id="properties-tabs-bar" style="display: none;"></div>
-        <div class="panel-body" id="inspector-content"></div>
-      </section>
 
-      <!-- OPTIONAL PANEL: Command History -->
-      <section class="panel col-right-slot hidden-panel" id="panel-history">
-        <div class="panel-header">
-          <div class="panel-tabs"><button class="panel-tab active"><span class="icon icon-sm">history</span> History</button></div>
-          <div class="panel-actions">
-            <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
-            <button class="panel-action-btn btn-close-panel" data-close-panel="panel-history" data-tooltip="Close History"><span class="icon icon-sm">close</span></button>
+          <div style="font-size: 11px; color: var(--text-secondary); font-family: ui-monospace, monospace;" id="sequence-name-disp">
+            00:00:00:00 / 00:01:00:00
+          </div>
+
+          <div style="display: flex; gap: 2px; align-items: center;">
+            <button class="ctrl-btn" id="prg-btn-loop" data-tooltip="Loop Playback"><span class="icon icon-sm">repeat</span></button>
+            <button class="ctrl-btn" id="btn-toggle-safe-margins" data-tooltip="Safe Margins & Guides"><span class="icon icon-sm">crop_free</span></button>
+            <button class="ctrl-btn" id="prg-btn-overlays" data-tooltip="Toggle Sequence Overlays HUD"><span class="icon icon-sm">layers</span></button>
+            <button class="ctrl-btn" id="prg-btn-compare" data-tooltip="Before / After Grade Compare Wipe"><span class="icon icon-sm">compare</span></button>
+            <button class="ctrl-btn" id="prg-btn-fullscreen" data-tooltip="Fullscreen Program Preview"><span class="icon icon-sm">open_in_full</span></button>
           </div>
         </div>
-        <div class="panel-body" id="history-panel-body" style="padding: 8px;"></div>
-      </section>
-
-      <!-- OPTIONAL PANEL: Sequence Markers -->
-      <section class="panel col-right-slot hidden-panel" id="panel-markers">
-        <div class="panel-header">
-          <div class="panel-tabs"><button class="panel-tab active"><span class="icon icon-sm">bookmark</span> Markers</button></div>
-          <div class="panel-actions">
-            <button class="panel-action-btn" id="btn-markers-panel-add" data-tooltip="Add Marker (M)"><span class="icon icon-sm">add</span></button>
-            <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
-            <button class="panel-action-btn btn-close-panel" data-close-panel="panel-markers" data-tooltip="Close Markers"><span class="icon icon-sm">close</span></button>
-          </div>
-        </div>
-        <div class="panel-body" id="markers-panel-body" style="padding: 8px;"></div>
-      </section>
-
-      <!-- PANEL F: Deliver Export Settings Panel (Deliver Workspace Right-Top) -->
-      <section class="panel hidden-panel" id="panel-deliver-settings" style="flex: 0.95;">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm">ios_share</span> Export Settings</button>
-          </div>
-          <div class="panel-actions" style="gap: 6px;">
-            <div class="deliver-mode-tabs">
-              <button class="deliver-mode-tab active" id="btn-deliver-mode-quick">Quick</button>
-              <button class="deliver-mode-tab" id="btn-deliver-mode-advanced">Advanced</button>
-            </div>
-            <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
-          </div>
-        </div>
-        <div class="panel-body" id="deliver-settings-body"></div>
-      </section>
-
+      </div>
     </div>
 
-    <!-- Vertical Splitter between Top Row & Bottom Row -->
-    <div class="splitter-v" id="splitter-row-v"></div>
+    <!-- VIEW: Contextual 5-Tab Properties Panel -->
+    <div class="panel-view-root" data-panel-id="properties" id="view-properties">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;" id="inspector-header-title">Selection Properties</span>
+        <button class="action-btn-compact" id="btn-pin-properties" data-tooltip="Pin Inspected Object">
+          <span class="icon icon-sm">push_pin</span> Pin
+        </button>
+      </div>
+      <div class="props-tabs-bar" id="properties-tabs-bar" style="display: none;"></div>
+      <div class="panel-body" id="inspector-content"></div>
+    </div>
 
-    <!-- BOTTOM ROW: Timeline (Edit/Motion/Audio-top), Color Wheels (Color), Audio Console (Audio), Render Queue (Deliver) -->
-    <div class="workspace-bottom-row" id="workspace-bottom-row">
+    <!-- VIEW: Effects Library (Effects & Transitions Catalog) -->
+    <div class="panel-view-root" data-panel-id="effects-library" id="view-effects-library">
+      <div class="fx-category-pills" id="fx-category-pills"></div>
+      <div class="panel-body" id="fx-catalog-list" style="padding: 8px;"></div>
+    </div>
 
-      <!-- PANEL G: Four-Zone Multitrack Timeline -->
-      <section class="panel timeline-pane" id="panel-timeline">
+    <!-- VIEW: Transition Browser -->
+    <div class="panel-view-root" data-panel-id="transition-browser" id="view-transition-browser">
+      <div class="panel-body" id="transition-browser-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Effect Controls -->
+    <div class="panel-view-root" data-panel-id="effect-controls" id="view-effect-controls">
+      <div class="panel-body" id="effect-controls-body"></div>
+    </div>
+
+    <!-- VIEW: LUT Browser & Shots -->
+    <div class="panel-view-root" data-panel-id="lut-browser" id="view-lut-browser">
+      <div class="panel-body" id="color-clips-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Color Controls -->
+    <div class="panel-view-root" data-panel-id="color-controls" id="view-color-controls">
+      <div class="panel-body" id="color-controls-body"></div>
+    </div>
+
+    <!-- VIEW: Video Scopes -->
+    <div class="panel-view-root" data-panel-id="video-scopes" id="view-video-scopes">
+      <div class="panel-body" id="video-scopes-body" style="padding: 8px;">
+        <canvas id="live-rgb-scope-canvas" class="scope-canvas"></canvas>
+        <div style="font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 4px;">Real-time RGB Histogram sampled from Program Monitor</div>
+      </div>
+    </div>
+
+    <!-- VIEW: Comparison Viewer -->
+    <div class="panel-view-root" data-panel-id="comparison-viewer" id="view-comparison-viewer">
+      <div class="panel-body" id="comparison-viewer-body" style="padding: 10px;"></div>
+    </div>
+
+    <!-- VIEW: Color Wheels -->
+    <div class="panel-view-root" data-panel-id="color-wheels" id="view-color-wheels">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Primary Wheels · Lift · Gamma · Gain · Offset</span>
+        <button class="action-btn-compact" id="btn-reset-wheels">Reset Wheels</button>
+      </div>
+      <div class="panel-body color-wheels-panel-body" id="color-wheels-body"></div>
+    </div>
+
+    <!-- VIEW: Audio Mixer -->
+    <div class="panel-view-root" data-panel-id="audio-mixer" id="view-audio-mixer">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Web Audio Mixer & Buses</span>
+        <div style="display: flex; align-items: center; gap: 5px;">
+          <select id="audio-layout-select" class="compact-select">
+            <option value="stereo">Stereo 2.0</option>
+            <option value="5.1">5.1 Surround</option>
+          </select>
+          <button class="action-btn-compact primary" id="btn-init-audio-engine">Activate DSP</button>
+        </div>
+      </div>
+      <div class="audio-console-grid" id="audio-console-body"></div>
+    </div>
+
+    <!-- VIEW: Audio Routing & EQ -->
+    <div class="panel-view-root" data-panel-id="audio-routing" id="view-audio-routing">
+      <div class="panel-body" id="audio-routing-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Audio Meters -->
+    <div class="panel-view-root" data-panel-id="audio-meters" id="view-audio-meters">
+      <div class="panel-body" id="audio-meters-body" style="padding: 10px;"></div>
+    </div>
+
+    <!-- VIEW: Loudness Analysis -->
+    <div class="panel-view-root" data-panel-id="loudness-analysis" id="view-loudness-analysis">
+      <div class="panel-body" id="loudness-analysis-body" style="padding: 10px;"></div>
+    </div>
+
+    <!-- VIEW: Essential Graphics -->
+    <div class="panel-view-root" data-panel-id="essential-graphics" id="view-essential-graphics">
+      <div class="panel-body" id="essential-graphics-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Motion Controls -->
+    <div class="panel-view-root" data-panel-id="motion-controls" id="view-motion-controls">
+      <div class="panel-body" id="motion-controls-body"></div>
+    </div>
+
+    <!-- VIEW: Keyframes -->
+    <div class="panel-view-root" data-panel-id="keyframes" id="view-keyframes">
+      <div class="panel-body" id="keyframes-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Graph Editor -->
+    <div class="panel-view-root" data-panel-id="graph-editor" id="view-graph-editor">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary);"><strong style="color: var(--accent);">KEYFRAME GRAPH</strong> · Cubic Bezier Velocity Curve</span>
+        <span id="graph-panel-active-param" style="font-size: 10.5px; color: var(--text-muted);">Scale & Position</span>
+      </div>
+      <div class="panel-body" style="padding: 8px; display: flex; flex-direction: column;">
+        <canvas id="graph-editor-panel-canvas" style="width: 100%; flex: 1; min-height: 100px; display: block; border-radius: 3px;"></canvas>
+      </div>
+    </div>
+
+    <!-- VIEW: History -->
+    <div class="panel-view-root" data-panel-id="history" id="view-history">
+      <div class="panel-body" id="history-panel-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Markers -->
+    <div class="panel-view-root" data-panel-id="markers" id="view-markers">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary);">Sequence Markers</span>
+        <button class="action-btn-compact" id="btn-markers-panel-add"><span class="icon icon-sm">add</span> Add Marker</button>
+      </div>
+      <div class="panel-body" id="markers-panel-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Timeline Index -->
+    <div class="panel-view-root" data-panel-id="timeline-index" id="view-timeline-index">
+      <div class="panel-body" id="timeline-index-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Metadata -->
+    <div class="panel-view-root" data-panel-id="metadata" id="view-metadata">
+      <div class="panel-body" id="metadata-panel-body"></div>
+    </div>
+
+    <!-- VIEW: Project Info -->
+    <div class="panel-view-root" data-panel-id="project-info" id="view-project-info">
+      <div class="panel-body" id="project-info-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Media Dependencies -->
+    <div class="panel-view-root" data-panel-id="media-dependencies" id="view-media-dependencies">
+      <div class="panel-body" id="media-dependencies-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Export Settings -->
+    <div class="panel-view-root" data-panel-id="export-settings" id="view-export-settings">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Deliver Configuration</span>
+        <div class="deliver-mode-tabs">
+          <button class="deliver-mode-tab active" id="btn-deliver-mode-quick">Quick</button>
+          <button class="deliver-mode-tab" id="btn-deliver-mode-advanced">Advanced</button>
+        </div>
+      </div>
+      <div class="panel-body" id="deliver-settings-body"></div>
+    </div>
+
+    <!-- VIEW: Render Queue -->
+    <div class="panel-view-root" data-panel-id="render-queue" id="view-render-queue">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">Output Jobs</span>
+        <div style="display: flex; gap: 5px;">
+          <button class="action-btn-compact danger" id="btn-cancel-queue">Cancel Active</button>
+          <button class="action-btn-compact primary" id="btn-render-all-queue"><span class="icon icon-sm">play_arrow</span> Render All</button>
+        </div>
+      </div>
+      <div class="panel-body" id="deliver-queue-body"></div>
+    </div>
+
+    <!-- VIEW: Output Validation -->
+    <div class="panel-view-root" data-panel-id="output-validation" id="view-output-validation">
+      <div class="panel-body" id="output-validation-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Diagnostics / Performance / GPU / Cache -->
+    <div class="panel-view-root" data-panel-id="diagnostics" id="view-diagnostics">
+      <div class="panel-body" id="diagnostics-panel-body" style="padding: 8px;"></div>
+    </div>
+    <div class="panel-view-root" data-panel-id="performance-monitor" id="view-performance-monitor">
+      <div class="panel-body" id="performance-monitor-body" style="padding: 8px;"></div>
+    </div>
+    <div class="panel-view-root" data-panel-id="gpu-status" id="view-gpu-status">
+      <div class="panel-body" id="gpu-status-body" style="padding: 8px;"></div>
+    </div>
+    <div class="panel-view-root" data-panel-id="cache-manager" id="view-cache-manager">
+      <div class="panel-body" id="cache-manager-body" style="padding: 8px;"></div>
+    </div>
+    <div class="panel-view-root" data-panel-id="storage-diagnostics" id="view-storage-diagnostics">
+      <div class="panel-subbar">
+        <span style="font-size: 11px; color: var(--text-secondary); font-weight: 600;">IndexedDB & Storage Audit</span>
+        <button class="action-btn-compact primary" id="btn-storage-inspect" style="padding: 1px 7px; font-size: 10.5px;">Inspect Storage</button>
+      </div>
+      <div class="panel-body" id="storage-diagnostics-body" style="padding: 8px;"></div>
+    </div>
+
+    <!-- VIEW: Four-Zone Multitrack Timeline -->
+    <div class="panel-view-root" data-panel-id="timeline" id="view-timeline">
+      <div class="timeline-pane" id="panel-timeline">
         <!-- ZONE A: 4-Group Compact Toolbar -->
         <div class="timeline-toolbar">
-          <!-- Group 1: Editing Tools -->
           <div class="toolbar-group">
             <button class="tool-btn active" id="tool-select" data-tooltip="Selection Tool (V)"><span class="icon icon-sm">near_me</span></button>
             <button class="tool-btn" id="tool-track-select" data-tooltip="Track Select Forward (A)"><span class="icon icon-sm">double_arrow</span></button>
@@ -532,7 +653,6 @@
             <button class="tool-btn" id="tool-text" data-tooltip="Type / Title Tool (T)"><span class="icon icon-sm">title</span></button>
           </div>
 
-          <!-- Group 2: Timeline Behaviour (Independent Controls) -->
           <div class="toolbar-group">
             <button class="tool-btn active" id="btn-snap-toggle" data-tooltip="Snapping (S) · Hold Alt to bypass">
               <span class="icon icon-sm">align_horizontal_center</span>
@@ -545,17 +665,15 @@
             </button>
           </div>
 
-          <!-- Group 3: Display Settings -->
           <div class="toolbar-group">
             <button class="tool-btn" id="btn-timeline-display-settings" data-tooltip="Timeline Display Settings">
               <span class="icon icon-sm">tune</span>
             </button>
-            <button class="tool-btn" id="btn-toggle-graph-drawer" data-tooltip="Toggle Keyframe Graph Editor">
+            <button class="tool-btn" id="btn-toggle-graph-drawer" data-tooltip="Toggle Keyframe Graph Drawer">
               <span class="icon icon-sm">show_chart</span>
             </button>
           </div>
 
-          <!-- Group 4: Navigation & Track Controls -->
           <div class="toolbar-group">
             <button class="tool-btn" id="btn-add-marker" data-tooltip="Add Marker (M)"><span class="icon icon-sm">bookmark_add</span></button>
             <button class="tool-btn" id="btn-time-zoom-out" data-tooltip="Zoom Out (-)"><span class="icon icon-sm">zoom_out</span></button>
@@ -563,12 +681,6 @@
             <button class="tool-btn" id="btn-time-fit" data-tooltip="Fit Sequence (\)"><span class="icon icon-sm">fit_screen</span></button>
             <button class="action-btn-compact" id="btn-add-v-track" data-tooltip="Add Video Track">+V</button>
             <button class="action-btn-compact" id="btn-add-a-track" data-tooltip="Add Audio Track">+A</button>
-          </div>
-
-          <div style="flex: 1;"></div>
-
-          <div class="panel-actions">
-            <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
           </div>
 
           <!-- Timeline Display Settings Popover -->
@@ -587,20 +699,17 @@
           </div>
         </div>
 
-        <!-- Optional Motion Keyframe Graph Drawer -->
-        <div id="motion-graph-drawer" style="display: none; height: 115px; background: #0A0E15; border-bottom: 1px solid var(--border); padding: 6px 10px; flex-shrink: 0;">
+        <!-- Optional Inline Motion Keyframe Graph Drawer -->
+        <div id="motion-graph-drawer" style="display: none; height: 112px; background: #0A0E15; border-bottom: 1px solid var(--border); padding: 6px 10px; flex-shrink: 0;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; font-size: 10.5px; color: var(--text-secondary);">
             <span><strong style="color: var(--accent);">KEYFRAME GRAPH EDITOR</strong> · Cubic Bezier Velocity Curve</span>
             <span id="graph-active-param">Active Parameter: Scale & Position</span>
           </div>
-          <canvas id="motion-graph-canvas" style="width: 100%; height: 82px; display: block;"></canvas>
+          <canvas id="motion-graph-canvas" style="width: 100%; height: 80px; display: block;"></canvas>
         </div>
 
         <div class="timeline-content">
-          <!-- ZONE B: Track Headers -->
           <div class="timeline-headers-col" id="timeline-headers-container"></div>
-
-          <!-- ZONE C & D: Ruler, Playhead, Snap Guide & Track Lanes -->
           <div class="timeline-tracks-scroll" id="timeline-scroll-area">
             <div class="timeline-ruler" id="timeline-ruler-bar"></div>
             <div class="timeline-snap-guide" id="timeline-snap-guide"></div>
@@ -610,7 +719,6 @@
             <div id="timeline-lanes-container" style="position: relative;"></div>
           </div>
 
-          <!-- Master Stereo VU Meter -->
           <div class="timeline-vu-meter">
             <div class="vu-title">VU</div>
             <div class="vu-meter-body">
@@ -620,55 +728,10 @@
             <div class="vu-db-readout" id="vu-db-text">-∞</div>
           </div>
         </div>
-      </section>
-
-      <!-- PANEL H: Color Wheels & Primary Grading Desk (Color Workspace Bottom) -->
-      <section class="panel hidden-panel" id="panel-color-wheels" style="flex: 1;">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm">palette</span> Primary Color Wheels (Lift · Gamma · Gain · Offset)</button>
-          </div>
-          <div class="panel-actions">
-            <button class="action-btn-compact" id="btn-reset-wheels">Reset Wheels</button>
-          </div>
-        </div>
-        <div class="panel-body color-wheels-panel-body" id="color-wheels-body"></div>
-      </section>
-
-      <!-- PANEL I: Real Web Audio Fairlight Mixing Console & Routing Matrix (Audio Workspace Bottom) -->
-      <section class="panel hidden-panel" id="panel-audio-console" style="flex: 1;">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm">graphic_eq</span> Web Audio Multichannel Mixer · Bus Routing · EQ Rack · LUFS Loudness</button>
-          </div>
-          <div class="panel-actions">
-            <select id="audio-layout-select" class="compact-select">
-              <option value="stereo">Output: Stereo 2.0</option>
-              <option value="5.1">Output: 5.1 Surround</option>
-            </select>
-            <button class="action-btn-compact primary" id="btn-init-audio-engine">Activate Web Audio DSP</button>
-          </div>
-        </div>
-        <div class="audio-console-grid" id="audio-console-body"></div>
-      </section>
-
-      <!-- PANEL J: Deliver Render Queue & Job Details (Deliver Workspace Bottom) -->
-      <section class="panel hidden-panel" id="panel-deliver-queue" style="flex: 1;">
-        <div class="panel-header">
-          <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm">queue</span> Render Queue & Output Jobs</button>
-          </div>
-          <div class="panel-actions">
-            <button class="action-btn-compact danger" id="btn-cancel-queue">Cancel Active</button>
-            <button class="action-btn-compact primary" id="btn-render-all-queue"><span class="icon icon-sm">play_arrow</span> Render All</button>
-          </div>
-        </div>
-        <div class="panel-body" id="deliver-queue-body"></div>
-      </section>
-
+      </div>
     </div>
 
-  </main>
+  </div>
 
   <!-- 3. Honest Runtime Telemetry Status Bar (24px) -->
   <footer class="status-bar">
@@ -684,6 +747,7 @@
       <span class="status-pill-telemetry" id="status-fps-label">-- FPS</span>
       <span>Drops: <strong style="color: #fff;" id="status-drops-label">0</strong></span>
       <span id="status-export-label" style="color: var(--text-secondary);">Export: Idle</span>
+      <span id="status-viewport-warning" class="status-pill-telemetry" style="display: none; color: var(--warning); border-color: rgba(229,180,92,0.4);"></span>
     </div>
 
     <div style="display: flex; align-items: center; gap: 10px;">
@@ -693,12 +757,12 @@
     </div>
   </footer>
 
-  <!-- 4. Dynamic Right-Click Context Menu -->
+  <!-- 4. Dynamic Context Menu (Timeline, Track Headers, Panel Tabs & Overflow) -->
   <div class="context-menu" id="timeline-context-menu"></div>
 
   <!-- 5. Visual Keyboard Shortcuts Customizer Modal -->
   <div class="modal-overlay" id="modal-shortcuts">
-    <div class="modal-card">
+    <div class="modal-card" style="width: 780px;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <span class="icon" style="color: var(--accent);">keyboard</span>
@@ -708,7 +772,7 @@
       </div>
       <div class="modal-body">
         <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: 6px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <span style="font-size: 11px; color: var(--text-secondary);">Preset:</span>
             <select id="preset-selector" class="compact-select">
               <option value="frameflow">FRAMEFLOW Default</option>
@@ -716,22 +780,24 @@
               <option value="resolve">DaVinci Resolve</option>
               <option value="fcp">Final Cut Pro</option>
             </select>
-            <button class="action-btn-compact" id="btn-reset-shortcuts">Reset Defaults</button>
+            <button class="action-btn-compact" id="btn-reset-shortcuts">Restore Defaults</button>
+            <button class="action-btn-compact" id="btn-import-shortcuts">Import Profile</button>
             <button class="action-btn-compact" id="btn-export-shortcuts">Export Profile</button>
           </div>
-          <input type="text" id="shortcut-search" placeholder="Search commands or keys..." style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 3px; font-size: 11.5px; width: 220px;">
+          <input type="text" id="shortcut-search" placeholder="Search commands or shortcuts..." style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 4px 8px; border-radius: 3px; font-size: 11.5px; width: 220px;">
         </div>
 
-        <div id="virtual-keyboard-container" style="background: #0F131A; padding: 12px; border-radius: 4px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px;"></div>
-        <div id="shortcut-conflict-banner" style="display: none; padding: 6px 10px; background: rgba(227,111,120,0.15); border: 1px solid var(--error); border-radius: 4px; font-size: 11px; color: var(--error);"></div>
+        <div id="virtual-keyboard-container" style="background: #0F131A; padding: 10px; border-radius: 4px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 4px;"></div>
+        <div id="shortcut-conflict-banner" style="display: none; padding: 6px 10px; background: rgba(227,111,120,0.14); border: 1px solid var(--error); border-radius: 4px; font-size: 11px; color: var(--error); align-items: center; justify-content: space-between; gap: 8px;"></div>
 
-        <div style="max-height: 210px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px;">
+        <div style="max-height: 230px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px;">
           <table style="width: 100%; border-collapse: collapse; font-size: 11.5px; text-align: left;">
             <thead>
               <tr style="background: var(--panel-header); color: var(--text-secondary); border-bottom: 1px solid var(--border);">
                 <th style="padding: 6px 10px;">Command</th>
                 <th style="padding: 6px 10px;">Category</th>
-                <th style="padding: 6px 10px;">Assigned Key (Click to Rebind)</th>
+                <th style="padding: 6px 10px;">Assigned Shortcut (Click to Rebind)</th>
+                <th style="padding: 6px 10px; width: 70px;">Action</th>
               </tr>
             </thead>
             <tbody id="shortcuts-table-body"></tbody>
@@ -755,7 +821,7 @@
     </div>
   </div>
 
-  <!-- 7. Project Settings Modal (Project > Project Settings) -->
+  <!-- 7. Project Settings Modal -->
   <div class="modal-overlay" id="modal-project-settings">
     <div class="modal-card" style="width: 460px;">
       <div class="modal-header">
@@ -769,7 +835,7 @@
     </div>
   </div>
 
-  <!-- 8. Sequence Settings Modal (Sequence > Sequence Settings) -->
+  <!-- 8. Sequence Settings Modal -->
   <div class="modal-overlay" id="modal-sequence-settings">
     <div class="modal-card" style="width: 480px;">
       <div class="modal-header">
@@ -780,6 +846,27 @@
         <button class="panel-action-btn" id="btn-close-seq-settings" style="font-size: 18px;">&times;</button>
       </div>
       <div class="modal-body" id="sequence-settings-body"></div>
+    </div>
+  </div>
+
+  <!-- 9. Workspace & Docking Guide Modal -->
+  <div class="modal-overlay" id="modal-docs">
+    <div class="modal-card" style="width: 560px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="icon" style="color: var(--accent);">menu_book</span>
+          <span>FRAMEFLOW Workspace & Docking Guide</span>
+        </div>
+        <button class="panel-action-btn" id="btn-close-docs-modal" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size: 12px; line-height: 1.55; color: var(--text-secondary);">
+        <p><strong style="color: var(--text-primary);">Customizable Panel Docking:</strong> Drag any panel tab to the center of another panel to group it as a tab, or drop on the Left, Right, Top, or Bottom edge to create a new split dock.</p>
+        <p><strong style="color: var(--text-primary);">Move Entire Groups:</strong> Drag the 6-dot handle on the left of a tab bar to relocate or merge an entire panel group at once.</p>
+        <p><strong style="color: var(--text-primary);">Stacked Panel Groups:</strong> Right-click any panel tab (or click <code>⋮</code>) and choose <em>Switch Group to Stacked Mode</em>. Enable <em>Solo Mode</em> to keep only one stacked panel expanded at a time.</p>
+        <p><strong style="color: var(--text-primary);">Floating & Redocking:</strong> Click the undock icon (or Alt+Drag a tab) to float a panel inside the viewport. Drag a floating header to any dock edge or click the Redock button to return it.</p>
+        <p><strong style="color: var(--text-primary);">Maximize & Restore:</strong> Double-click any panel tab or press <code>`</code> (backtick) to maximize/restore the active dock group.</p>
+        <p><strong style="color: var(--text-primary);">Non-Destructive Workspaces:</strong> Switch workspaces freely (or drag workspace tabs to reorder them) — your selected clips, playhead position, timeline zoom, and active playback are always preserved.</p>
+      </div>
     </div>
   </div>
 

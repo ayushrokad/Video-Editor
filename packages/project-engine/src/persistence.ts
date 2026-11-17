@@ -1,5 +1,6 @@
 /**
  * @frameflow/project-engine - IndexedDB Persistence & Recovery
+ * Hardened with idempotent DB initialization and change-based persistence.
  */
 
 import type { ProjectModel } from '../../shared-types/src/index.ts';
@@ -11,13 +12,17 @@ const ACTIVE_PROJECT_KEY = 'active_project_id';
 
 export class PersistenceManager {
   private db: IDBDatabase | null = null;
+  private openPromise: Promise<boolean> | null = null;
+  private lastSavedHashes = new Map<string, string>();
 
   async init(): Promise<boolean> {
+    if (this.db) return true;
     if (typeof window === 'undefined' || !window.indexedDB) {
       return false;
     }
+    if (this.openPromise) return this.openPromise;
 
-    return new Promise((resolve) => {
+    this.openPromise = new Promise((resolve) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION);
 
       request.onupgradeneeded = (e: any) => {
@@ -33,18 +38,30 @@ export class PersistenceManager {
       };
 
       request.onerror = () => {
+        this.openPromise = null;
         console.warn('[FRAMEFLOW Persistence] IndexedDB open error');
         resolve(false);
       };
     });
+
+    return this.openPromise;
   }
 
-  async saveProject(project: ProjectModel): Promise<boolean> {
+  private computeHash(project: ProjectModel): string {
+    return JSON.stringify(project, (k, v) => (k === 'modifiedAt' ? undefined : v));
+  }
+
+  async saveProject(project: ProjectModel, { force = false } = {}): Promise<boolean> {
+    const hash = this.computeHash(project);
+    if (!force && this.lastSavedHashes.get(project.id) === hash) {
+      return true; // Skip unchanged write
+    }
+
     if (!this.db) {
-      // Fallback to localStorage if IndexedDB is not ready
       try {
         localStorage.setItem(`ff_project_${project.id}`, JSON.stringify(project));
         localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
+        this.lastSavedHashes.set(project.id, hash);
         return true;
       } catch {
         return false;
@@ -59,6 +76,7 @@ export class PersistenceManager {
 
         tx.oncomplete = () => {
           localStorage.setItem(ACTIVE_PROJECT_KEY, project.id);
+          this.lastSavedHashes.set(project.id, hash);
           resolve(true);
         };
         tx.onerror = () => resolve(false);
@@ -75,7 +93,10 @@ export class PersistenceManager {
     if (!this.db) {
       try {
         const data = localStorage.getItem(`ff_project_${lastId}`);
-        return data ? JSON.parse(data) : null;
+        if (!data) return null;
+        const parsed = JSON.parse(data);
+        this.lastSavedHashes.set(parsed.id, this.computeHash(parsed));
+        return parsed;
       } catch {
         return null;
       }
@@ -87,7 +108,11 @@ export class PersistenceManager {
         const store = tx.objectStore(STORE_NAME);
         const req = store.get(lastId);
 
-        req.onsuccess = () => resolve(req.result || null);
+        req.onsuccess = () => {
+          const result = req.result || null;
+          if (result) this.lastSavedHashes.set(result.id, this.computeHash(result));
+          resolve(result);
+        };
         req.onerror = () => resolve(null);
       } catch {
         resolve(null);

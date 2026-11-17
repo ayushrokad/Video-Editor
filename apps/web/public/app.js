@@ -55,6 +55,15 @@ import {
   createDefaultSessionState,
 } from './js/state-store.js';
 import { FrameflowLayoutManager } from './js/layout-manager.js';
+import { PANEL_REGISTRY, PANEL_CATEGORIES, getPanelsByCategory } from './js/panel-registry.js';
+import {
+  BUILTIN_WORKSPACES,
+  findGroupContainingPanel,
+  movePanelToZone,
+  createStructuredWorkspaceLayout,
+} from './js/panel-manager.js';
+import { ShortcutRegistry, eventToKeyCombo } from './js/shortcut-registry.js';
+import { renderAllSpecialistPanels, renderGraphEditorPanel, renderMediaBrowserPanel } from './js/panel-views.js';
 
 // ----------------------------------------------------
 // 1. Core Subsystem Instances
@@ -66,10 +75,23 @@ const renderQueue = new RenderQueueManager(() => {
   updateExportStatusTelemetry();
 });
 
-const layoutManager = new FrameflowLayoutManager(store, () => {
-  updateWindowPanelsCheckmarks();
-  syncPropertiesToggleButton();
+const layoutManager = new FrameflowLayoutManager(store, {
+  onLayoutChange: () => {
+    renderWorkspaceBar();
+    renderWindowMenu();
+    syncPropertiesToggleButton();
+  },
+  onPanelActivated: (panelId) => {
+    renderPanelById(panelId);
+  },
+  onOpenContextMenu: (x, y, items) => openContextMenu(x, y, items),
 });
+
+const shortcutRegistry = new ShortcutRegistry(
+  (() => {
+    try { return JSON.parse(localStorage.getItem('ff_shortcuts_v2') || 'null'); } catch { return null; }
+  })()
+);
 
 const TRACK_COLORS = ['#4B8DFF', '#8B5CF6', '#38C995', '#06B6D4', '#E5B45C', '#E36F78'];
 
@@ -109,61 +131,10 @@ const uiState = {
 };
 
 // ----------------------------------------------------
-// 2. Configurable Keyboard Shortcuts Registry
-// ----------------------------------------------------
-const DEFAULT_SHORTCUTS = [
-  { id: 'play_pause',       name: 'Play / Pause',            category: 'Transport',  key: 'Space',           type: 'transport' },
-  { id: 'shuttle_rev',      name: 'Shuttle Reverse',         category: 'Transport',  key: 'J',               type: 'transport' },
-  { id: 'shuttle_pause',    name: 'Pause Shuttle',           category: 'Transport',  key: 'K',               type: 'transport' },
-  { id: 'shuttle_fwd',      name: 'Shuttle Forward',         category: 'Transport',  key: 'L',               type: 'transport' },
-  { id: 'step_prev_frame',  name: 'Frame Back',              category: 'Transport',  key: 'ArrowLeft',       type: 'transport' },
-  { id: 'step_next_frame',  name: 'Frame Forward',           category: 'Transport',  key: 'ArrowRight',      type: 'transport' },
-  { id: 'step_prev_5',      name: '5 Frames Back',           category: 'Transport',  key: 'Shift+ArrowLeft', type: 'transport' },
-  { id: 'step_next_5',      name: '5 Frames Forward',        category: 'Transport',  key: 'Shift+ArrowRight',type: 'transport' },
-  { id: 'mark_in',          name: 'Mark In',                 category: 'Transport',  key: 'I',               type: 'transport' },
-  { id: 'mark_out',         name: 'Mark Out',                category: 'Transport',  key: 'O',               type: 'transport' },
-  { id: 'clear_io',         name: 'Clear Source In/Out',     category: 'Transport',  key: 'Alt+X',           type: 'transport' },
-  { id: 'insert_src',       name: 'Insert Source Range',     category: 'Editing',    key: ',',               type: 'edit' },
-  { id: 'overwrite_src',    name: 'Overwrite Source Range',  category: 'Editing',    key: '.',               type: 'edit' },
-  { id: 'tool_select',      name: 'Selection Tool',          category: 'Tools',      key: 'V',               type: 'tool' },
-  { id: 'tool_track_select',name: 'Track Select Forward',    category: 'Tools',      key: 'A',               type: 'tool' },
-  { id: 'tool_ripple',      name: 'Ripple Edit Tool',        category: 'Tools',      key: 'B',               type: 'tool' },
-  { id: 'tool_rolling',     name: 'Rolling Edit Tool',       category: 'Tools',      key: 'N',               type: 'tool' },
-  { id: 'tool_rate_stretch',name: 'Rate Stretch Tool',       category: 'Tools',      key: 'R',               type: 'tool' },
-  { id: 'tool_razor',       name: 'Razor Cut Tool',          category: 'Tools',      key: 'C',               type: 'tool' },
-  { id: 'tool_slip',        name: 'Slip Tool',               category: 'Tools',      key: 'Y',               type: 'tool' },
-  { id: 'tool_slide',       name: 'Slide Tool',              category: 'Tools',      key: 'U',               type: 'tool' },
-  { id: 'tool_pen',         name: 'Pen Tool',                category: 'Tools',      key: 'P',               type: 'tool' },
-  { id: 'tool_hand',        name: 'Hand Tool',               category: 'Tools',      key: 'H',               type: 'tool' },
-  { id: 'tool_zoom',        name: 'Zoom Tool',               category: 'Tools',      key: 'Z',               type: 'tool' },
-  { id: 'tool_text',        name: 'Type / Title Tool',       category: 'Tools',      key: 'T',               type: 'tool' },
-  { id: 'split_playhead',   name: 'Split at Playhead',       category: 'Editing',    key: 'Ctrl+K',          type: 'edit' },
-  { id: 'delete_clip',      name: 'Delete Selected Clip',    category: 'Editing',    key: 'Delete',          type: 'edit' },
-  { id: 'link_clips',       name: 'Link Selected Clips',     category: 'Editing',    key: 'Ctrl+L',          type: 'edit' },
-  { id: 'unlink_clips',     name: 'Unlink Clips',            category: 'Editing',    key: 'Ctrl+Shift+L',    type: 'edit' },
-  { id: 'toggle_linked_sel',name: 'Toggle Linked Selection', category: 'Navigation', key: 'Shift+L',         type: 'nav' },
-  { id: 'undo',             name: 'Undo',                    category: 'Editing',    key: 'Ctrl+Z',          type: 'edit' },
-  { id: 'redo',             name: 'Redo',                    category: 'Editing',    key: 'Ctrl+Shift+Z',    type: 'edit' },
-  { id: 'snap_toggle',      name: 'Toggle Snapping',         category: 'Navigation', key: 'S',               type: 'nav' },
-  { id: 'add_marker',       name: 'Add Sequence Marker',     category: 'Navigation', key: 'M',               type: 'nav' },
-  { id: 'zoom_in',          name: 'Zoom In Timeline',        category: 'Navigation', key: '=',               type: 'nav' },
-  { id: 'zoom_out',         name: 'Zoom Out Timeline',       category: 'Navigation', key: '-',               type: 'nav' },
-  { id: 'fit_sequence',     name: 'Fit Timeline',            category: 'Navigation', key: '\\',              type: 'nav' },
-  { id: 'maximize_panel',   name: 'Fullscreen Active Panel', category: 'Navigation', key: '`',               type: 'nav' },
-  { id: 'save_project',     name: 'Save Project',            category: 'Global',     key: 'Ctrl+S',          type: 'global' },
-  { id: 'import_media',     name: 'Import Media',            category: 'Global',     key: 'Ctrl+I',          type: 'global' },
-  { id: 'export_deliver',   name: 'Export (Deliver)',        category: 'Global',     key: 'Ctrl+M',          type: 'global' },
-  { id: 'shortcuts_modal',  name: 'Keyboard Shortcuts',      category: 'Global',     key: 'Ctrl+Alt+K',      type: 'global' },
-];
-
-let activeShortcuts = JSON.parse(localStorage.getItem('ff_shortcuts') || 'null') || structuredClone(DEFAULT_SHORTCUTS);
-
-// ----------------------------------------------------
-// 3. Accessor Helpers (Single Source of Truth)
+// 2. Accessor Helpers (Single Source of Truth)
 // ----------------------------------------------------
 function getActiveSequence() {
   return store.projectState.sequences[store.sessionState.activeSequenceId]
-    || store.projectState.sequences[store.projectState.activeSequenceId]
     || Object.values(store.projectState.sequences)[0];
 }
 
@@ -181,28 +152,71 @@ function getActiveClip() {
 function setSelectedClipIds(ids) {
   const seq = getActiveSequence();
   const valid = new Set(seq.clips.map(c => c.id));
+  // Clip selection is temporary interaction state — NEVER marks project dirty or triggers save!
   store.sessionState.selectedClipIds = (ids || []).filter(id => valid.has(id));
-  store.scheduleSave(200);
+}
+
+function updateSaveStatusBadgeUI(diag) {
+  const badge = document.getElementById('save-status-badge');
+  const retryBtn = document.getElementById('btn-retry-save');
+  if (!badge) return;
+  const status = diag?.status || 'saved';
+  if (retryBtn) retryBtn.style.display = status === 'failed' ? 'inline-flex' : 'none';
+
+  if (status === 'unsaved') {
+    badge.textContent = '● Unsaved changes';
+    badge.className = 'save-status-indicator unsaved';
+    badge.title = `Project modified (rev ${diag.currentRevision}) · Autosaving shortly`;
+  } else if (status === 'saving') {
+    badge.textContent = 'Saving...';
+    badge.className = 'save-status-indicator saving';
+    badge.title = 'Saving project to IndexedDB...';
+  } else if (status === 'failed') {
+    badge.textContent = 'Save failed';
+    badge.className = 'save-status-indicator failed';
+    badge.title = `Unable to save changes: ${diag.lastError || 'Storage error'}. Click Retry.`;
+  } else if (status === 'offline') {
+    badge.textContent = '● Offline';
+    badge.className = 'save-status-indicator offline';
+    badge.title = 'Browser is offline — local IndexedDB persistence remains active';
+  } else if (status === 'recovering') {
+    badge.textContent = 'Recovering...';
+    badge.className = 'save-status-indicator recovering';
+    badge.title = 'Recovering project from latest snapshot';
+  } else {
+    const ts = diag?.lastSavedAt
+      ? ` ${new Date(diag.lastSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`
+      : '';
+    badge.textContent = `● Saved${ts}`;
+    badge.className = 'save-status-indicator saved';
+    badge.title = diag?.lastSavedAt
+      ? `All changes saved (rev ${diag.lastSavedRevision}, ${diag.lastSaveDurationMs}ms)`
+      : 'All changes saved';
+  }
+
+  // Refresh Save Diagnostics section live if Project Information panel is open
+  if (layoutManager.isPanelVisible('project-info')) {
+    renderAllSpecialistPanels(getPanelViewContext());
+  }
 }
 
 // ----------------------------------------------------
-// 4. Boot & Lifecycle (Restore 4 State Layers + Rehydrate Media Decoders)
+// 3. Boot & Lifecycle (Restore 4 State Layers + Rehydrate Media Decoders)
 // ----------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
-  store.onSaveStatus = (status) => {
-    const badge = document.getElementById('save-status-badge');
-    if (!badge) return;
-    if (status === 'saving') {
-      badge.textContent = 'Saving...';
-      badge.className = 'save-status-indicator unsaved';
-    } else {
-      badge.textContent = '● Saved';
-      badge.className = 'save-status-indicator saved';
-    }
-  };
+  store.onProjectStatusChange = (diag) => updateSaveStatusBadgeUI(diag);
+
+  document.getElementById('btn-retry-save')?.addEventListener('click', () => {
+    store.retryProjectSave();
+  });
+
+  window.addEventListener('online', () => store.autosave.setOffline(false));
+  window.addEventListener('offline', () => store.autosave.setOffline(true));
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    store.autosave.setOffline(true);
+  }
 
   layoutManager.init();
-  initSplitters();
   initPanelFocusAndMaximize();
   initMenus();
   initWorkspaceSwitcher();
@@ -216,35 +230,42 @@ document.addEventListener('DOMContentLoaded', async () => {
   initModals();
   initContextMenuDismiss();
 
-  // Persist reliably on tab hide (Page Visibility API) and unload
+  // Best-effort lifecycle flush ONLY when Project or Workspace actually has pending dirty changes
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') store.flushNow();
+    if (document.visibilityState === 'hidden') {
+      store.flushWorkspaceNow('visibility-hidden');
+      if (store.autosave.hasPendingChanges()) store.saveProjectNow({ reason: 'visibility-hidden', manual: false });
+    }
   });
   window.addEventListener('beforeunload', () => {
-    store.flushNow();
+    store.flushWorkspaceNow('beforeunload');
+    if (store.autosave.hasPendingChanges()) store.saveProjectNow({ reason: 'beforeunload', manual: false });
   });
 
   await probeRuntimeCapabilities();
   await store.restoreAll();
-  await rehydrateAllMediaDecoders();
 
-  // Restore saved session UI toggles & scroll position
-  syncSessionControlsUI();
-  applyWorkspaceUI(store.workspaceState.activeWorkspace);
-  renderAll();
+  // Guard startup UI restoration so hydration NEVER triggers spurious IndexedDB writes!
+  store.isHydrating = true;
+  try {
+    await rehydrateAllMediaDecoders();
+    syncSessionControlsUI();
+    applyWorkspaceUI(store.workspaceState.activeWorkspace);
+    renderAll();
 
-  // Restore Source Monitor clip if one was open before refresh
-  if (store.sessionState.sourceAssetId) {
-    loadAssetIntoSourceMonitor(store.sessionState.sourceAssetId, {
-      preserveInOut: true,
-      switchTab: false,
-    });
-  }
+    if (store.sessionState.sourceAssetId) {
+      loadAssetIntoSourceMonitor(store.sessionState.sourceAssetId, {
+        preserveInOut: true,
+        switchTab: false,
+      });
+    }
 
-  // Restore saved timeline scroll offset
-  const scrollArea = document.getElementById('timeline-scroll-area');
-  if (scrollArea && store.sessionState.timelineScrollLeft > 0) {
-    scrollArea.scrollLeft = store.sessionState.timelineScrollLeft;
+    const scrollArea = document.getElementById('timeline-scroll-area');
+    if (scrollArea && store.sessionState.timelineScrollLeft > 0) {
+      scrollArea.scrollLeft = store.sessionState.timelineScrollLeft;
+    }
+  } finally {
+    store.isHydrating = false;
   }
 
   startPlaybackAndTelemetryLoop();
@@ -413,114 +434,357 @@ function redo() {
 }
 
 // ----------------------------------------------------
-// 8. Workspace Switching (Zero Editing Context Loss!)
+// 8. Workspace Switching, Reorderable Bar & Central Window Menu
 // ----------------------------------------------------
+function getWorkspaceMeta(wsId) {
+  const builtin = BUILTIN_WORKSPACES.find(w => w.id === wsId);
+  if (builtin) return { ...builtin, isCustom: false };
+  const custom = (store.workspaceState.customWorkspaces || []).find(c => c.id === wsId);
+  if (custom) return { id: custom.id, name: custom.name, primary: false, isCustom: true, custom };
+  return { id: 'edit', name: 'Editing', primary: true, isCustom: false };
+}
+
 function initWorkspaceSwitcher() {
-  document.querySelectorAll('#workspace-bar .ws-tab').forEach(tab => {
-    tab.addEventListener('click', () => switchWorkspace(tab.dataset.ws));
+  const moreBtn = document.getElementById('btn-ws-more');
+  const moreMenu = document.getElementById('ws-more-dropdown');
+  moreBtn?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    renderWorkspaceMoreDropdown();
+    moreMenu?.classList.toggle('open');
+  });
+  document.addEventListener('click', (e) => {
+    if (moreMenu && !moreMenu.contains(e.target) && !moreBtn?.contains(e.target)) {
+      moreMenu.classList.remove('open');
+    }
   });
 }
 
+function renderWorkspaceBar() {
+  const bar = document.getElementById('workspace-bar');
+  if (!bar) return;
+
+  const activeWs = store.workspaceState.activeWorkspace || 'edit';
+  const order = store.workspaceState.workspaceOrder || BUILTIN_WORKSPACES.map(w => w.id);
+  const primaryIds = order.filter(id => {
+    const b = BUILTIN_WORKSPACES.find(w => w.id === id);
+    return b && b.primary;
+  });
+
+  // If the currently active workspace is a secondary or custom workspace, also show its pill on the bar
+  const barIds = [...primaryIds];
+  if (!barIds.includes(activeWs)) barIds.push(activeWs);
+
+  bar.innerHTML = barIds.map(id => {
+    const meta = getWorkspaceMeta(id);
+    return `<button class="ws-tab ${activeWs === id ? 'active' : ''}" data-ws="${id}" draggable="true" title="Switch to ${meta.name} (drag to reorder)">${meta.isCustom ? '★ ' : ''}${meta.name}</button>`;
+  }).join('');
+
+  let dragSrcId = null;
+  bar.querySelectorAll('.ws-tab').forEach(tab => {
+    const wsId = tab.dataset.ws;
+    tab.addEventListener('click', () => switchWorkspace(wsId));
+
+    tab.addEventListener('dragstart', (e) => {
+      dragSrcId = wsId;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', wsId);
+    });
+    tab.addEventListener('dragover', (e) => {
+      if (!dragSrcId || dragSrcId === wsId) return;
+      e.preventDefault();
+      tab.classList.add('ws-drag-over');
+    });
+    tab.addEventListener('dragleave', () => tab.classList.remove('ws-drag-over'));
+    tab.addEventListener('drop', (e) => {
+      e.preventDefault();
+      tab.classList.remove('ws-drag-over');
+      if (!dragSrcId || dragSrcId === wsId) return;
+      const list = [...(store.workspaceState.workspaceOrder || BUILTIN_WORKSPACES.map(w => w.id))];
+      const fromIdx = list.indexOf(dragSrcId);
+      const toIdx = list.indexOf(wsId);
+      if (fromIdx >= 0 && toIdx >= 0) {
+        const [moved] = list.splice(fromIdx, 1);
+        list.splice(toIdx, 0, moved);
+        store.workspaceState.workspaceOrder = list;
+        store.scheduleWorkspaceSave('workspace-reorder', 300);
+        renderWorkspaceBar();
+      }
+      dragSrcId = null;
+    });
+  });
+}
+
+function renderWorkspaceMoreDropdown() {
+  const dd = document.getElementById('ws-more-dropdown');
+  if (!dd) return;
+  const activeWs = store.workspaceState.activeWorkspace || 'edit';
+  const activeMeta = getWorkspaceMeta(activeWs);
+  const secondary = BUILTIN_WORKSPACES.filter(w => !w.primary);
+  const customs = store.workspaceState.customWorkspaces || [];
+
+  dd.innerHTML = `
+    <div class="menu-section-label">ADDITIONAL PRESETS</div>
+    ${secondary.map(w => `
+      <div class="menu-entry" data-ws-pick="${w.id}">
+        <span>${activeWs === w.id ? '✓ ' : '   '}${w.name}</span>
+        <span class="menu-shortcut">${w.shortcut || ''}</span>
+      </div>
+    `).join('')}
+    ${customs.length > 0 ? `
+      <div class="menu-sep"></div>
+      <div class="menu-section-label">CUSTOM WORKSPACES</div>
+      ${customs.map(c => `
+        <div class="menu-entry" data-ws-pick="${c.id}">
+          <span>${activeWs === c.id ? '✓ ' : '★ '}${c.name}</span>
+          <span class="menu-shortcut" data-ws-del="${c.id}" title="Delete Custom Workspace">✕</span>
+        </div>
+      `).join('')}
+    ` : ''}
+    <div class="menu-sep"></div>
+    <div class="menu-section-label">MANAGE WORKSPACES</div>
+    <div class="menu-entry" id="ws-act-save"><span>Save Workspace Changes</span></div>
+    <div class="menu-entry" id="ws-act-save-new"><span>Save as New Workspace...</span></div>
+    ${activeMeta.isCustom ? `<div class="menu-entry" id="ws-act-rename"><span>Rename "${activeMeta.name}"...</span></div>` : ''}
+    <div class="menu-entry" id="ws-act-duplicate"><span>Duplicate Current Workspace</span></div>
+    ${activeMeta.isCustom ? `<div class="menu-entry" id="ws-act-delete" style="color: var(--error);"><span>Delete "${activeMeta.name}"</span></div>` : ''}
+    <div class="menu-sep"></div>
+    <div class="menu-entry" id="ws-act-reset"><span>Reset Current Workspace</span></div>
+    <div class="menu-entry" id="ws-act-reset-all"><span>Restore Default Workspaces</span></div>
+  `;
+
+  dd.querySelectorAll('[data-ws-pick]').forEach(el => el.addEventListener('click', (e) => {
+    if (e.target.dataset.wsDel) {
+      e.stopPropagation();
+      deleteCustomWorkspace(e.target.dataset.wsDel);
+      renderWorkspaceMoreDropdown();
+      return;
+    }
+    dd.classList.remove('open');
+    switchWorkspace(el.dataset.wsPick);
+  }));
+
+  dd.querySelector('#ws-act-save')?.addEventListener('click', () => { dd.classList.remove('open'); store.flushWorkspaceNow('save-workspace'); });
+  dd.querySelector('#ws-act-save-new')?.addEventListener('click', () => { dd.classList.remove('open'); saveAsNewWorkspacePrompt(); });
+  dd.querySelector('#ws-act-rename')?.addEventListener('click', () => { dd.classList.remove('open'); renameActiveCustomWorkspacePrompt(); });
+  dd.querySelector('#ws-act-duplicate')?.addEventListener('click', () => { dd.classList.remove('open'); duplicateActiveWorkspace(); });
+  dd.querySelector('#ws-act-delete')?.addEventListener('click', () => { dd.classList.remove('open'); deleteCustomWorkspace(activeWs); });
+  dd.querySelector('#ws-act-reset')?.addEventListener('click', () => { dd.classList.remove('open'); layoutManager.resetCurrentWorkspace(); renderAll(); });
+  dd.querySelector('#ws-act-reset-all')?.addEventListener('click', () => { dd.classList.remove('open'); layoutManager.resetAllWorkspaces(); applyWorkspaceUI(store.workspaceState.activeWorkspace); renderAll(); });
+}
+
+function saveAsNewWorkspacePrompt() {
+  const curMeta = getWorkspaceMeta(store.workspaceState.activeWorkspace);
+  const name = prompt('Save as New Workspace Name:', `Custom ${curMeta.name}`);
+  if (!name || !name.trim()) return;
+  const id = `cws_${Date.now()}`;
+  const layoutCopy = JSON.parse(JSON.stringify(layoutManager.getActiveLayout()));
+  layoutCopy.id = id;
+  store.workspaceState.customWorkspaces.push({
+    id,
+    name: name.trim(),
+    baseWorkspace: curMeta.isCustom ? (curMeta.custom.baseWorkspace || 'edit') : curMeta.id,
+    layout: layoutCopy,
+  });
+  store.workspaceState.activeWorkspace = id;
+  store.flushWorkspaceNow('save-new-workspace');
+  applyWorkspaceUI(id);
+  renderAll();
+}
+
+function renameActiveCustomWorkspacePrompt() {
+  const wsId = store.workspaceState.activeWorkspace;
+  const custom = (store.workspaceState.customWorkspaces || []).find(c => c.id === wsId);
+  if (!custom) return;
+  const next = prompt('Rename Custom Workspace:', custom.name);
+  if (!next || !next.trim()) return;
+  custom.name = next.trim();
+  store.flushWorkspaceNow('rename-workspace');
+  renderWorkspaceBar();
+  renderWindowMenu();
+}
+
+function duplicateActiveWorkspace() {
+  const curMeta = getWorkspaceMeta(store.workspaceState.activeWorkspace);
+  const id = `cws_${Date.now()}`;
+  const layoutCopy = JSON.parse(JSON.stringify(layoutManager.getActiveLayout()));
+  layoutCopy.id = id;
+  store.workspaceState.customWorkspaces.push({
+    id,
+    name: `${curMeta.name} Copy`,
+    baseWorkspace: curMeta.isCustom ? (curMeta.custom.baseWorkspace || 'edit') : curMeta.id,
+    layout: layoutCopy,
+  });
+  store.workspaceState.activeWorkspace = id;
+  store.flushWorkspaceNow('duplicate-workspace');
+  applyWorkspaceUI(id);
+  renderAll();
+}
+
+function deleteCustomWorkspace(wsId) {
+  store.workspaceState.customWorkspaces = (store.workspaceState.customWorkspaces || []).filter(c => c.id !== wsId);
+  if (store.workspaceState.activeWorkspace === wsId) {
+    store.workspaceState.activeWorkspace = 'edit';
+  }
+  store.flushWorkspaceNow('delete-workspace');
+  applyWorkspaceUI(store.workspaceState.activeWorkspace);
+  renderAll();
+}
+
 function switchWorkspace(ws) {
-  // ONLY updates workspaceState — NEVER modifies projectState or sessionState!
-  store.workspaceState.activeWorkspace = ws;
-  store.scheduleSave(200);
-  applyWorkspaceUI(ws);
+  // ONLY updates workspaceState — NEVER modifies projectState, sessionState, or Project Save Status!
+  const target = ws === 'motion' ? 'effects' : ws;
+  if (store.workspaceState.activeWorkspace !== target) {
+    store.workspaceState.activeWorkspace = target;
+    store.scheduleWorkspaceSave('workspace-switch', 350);
+  }
+  applyWorkspaceUI(target);
   renderAll();
 }
 
 function applyWorkspaceUI(ws) {
-  document.querySelectorAll('#workspace-bar .ws-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.ws === ws);
-  });
-
   layoutManager.applyActiveWorkspaceLayout();
-
-  const graphDrawer = document.getElementById('motion-graph-drawer');
-  if (graphDrawer) graphDrawer.style.display = ws === 'motion' ? 'block' : 'none';
-
-  const projLabel = document.getElementById('project-panel-label');
-  const inspTitle = document.getElementById('inspector-header-title');
-  const inspIcon  = document.getElementById('inspector-header-icon');
-  const prgLabel  = document.getElementById('program-tab-label');
-
-  if (ws === 'media') {
-    if (projLabel) projLabel.textContent = 'Media Browser & Bins';
-    if (inspTitle) inspTitle.textContent = 'Metadata';
-    if (inspIcon)  inspIcon.textContent = 'description';
-  } else if (ws === 'edit') {
-    if (projLabel) projLabel.textContent = 'Project';
-    if (inspTitle) inspTitle.textContent = 'Properties';
-    if (inspIcon)  inspIcon.textContent = 'tune';
-    if (prgLabel)  prgLabel.textContent = 'Program: Master';
-  } else if (ws === 'motion') {
-    if (inspTitle) inspTitle.textContent = 'Properties & Motion';
-    if (inspIcon)  inspIcon.textContent = 'motion_mode';
-    if (prgLabel)  prgLabel.textContent = 'Composition Viewer';
-    renderEffectsLibrary();
-    setTimeout(drawMotionGraphCanvas, 20);
-  } else if (ws === 'color') {
-    if (inspTitle) inspTitle.textContent = 'Live Scopes & Grade';
-    if (inspIcon)  inspIcon.textContent = 'analytics';
-    if (prgLabel)  prgLabel.textContent = 'Color Grading Viewer';
-    renderColorClipsGallery();
-  } else if (ws === 'audio') {
-    renderAudioConsole();
-  } else if (ws === 'deliver') {
-    if (prgLabel) prgLabel.textContent = 'Output Preview';
-    renderDeliverSettings();
-    renderDeliverQueue();
-  }
-
-  updateWindowPanelsCheckmarks();
+  renderWorkspaceBar();
+  renderWindowMenu();
   syncPropertiesToggleButton();
-  renderCustomWorkspacesMenu();
+  setTimeout(() => {
+    drawMotionGraphCanvas();
+    renderGraphEditorPanel(getPanelViewContext());
+    const prg = document.getElementById('program-render-canvas');
+    if (prg) renderLiveColorScopes(prg);
+  }, 20);
+}
+
+function renderWindowMenu() {
+  const dd = document.getElementById('window-menu-dropdown');
+  if (!dd) return;
+  const activeWs = store.workspaceState.activeWorkspace || 'edit';
+  const activeMeta = getWorkspaceMeta(activeWs);
+  const byCategory = getPanelsByCategory();
+  const focusedGroup = layoutManager.getFocusedGroup();
+  const customs = store.workspaceState.customWorkspaces || [];
+
+  dd.innerHTML = `
+    <div class="menu-section-label">WORKSPACES</div>
+    ${BUILTIN_WORKSPACES.map(w => `
+      <div class="menu-entry" data-win-ws="${w.id}">
+        <span>${activeWs === w.id ? '✓ ' : '   '}${w.name}</span>
+        <span class="menu-shortcut">${w.shortcut || ''}</span>
+      </div>
+    `).join('')}
+    ${customs.map(c => `
+      <div class="menu-entry" data-win-ws="${c.id}">
+        <span>${activeWs === c.id ? '✓ ' : '★ '}${c.name}</span>
+        <span class="menu-shortcut" data-win-del-ws="${c.id}" title="Delete Workspace">✕</span>
+      </div>
+    `).join('')}
+    <div class="menu-sep"></div>
+    <div class="menu-entry" id="win-save-ws"><span>Save as New Workspace...</span></div>
+    ${activeMeta.isCustom ? `<div class="menu-entry" id="win-rename-ws"><span>Rename Current Workspace...</span></div>` : ''}
+    <div class="menu-entry" id="win-dup-ws"><span>Duplicate Current Workspace</span></div>
+    <div class="menu-entry" id="win-reset-current-ws"><span>Reset Current Workspace</span></div>
+    <div class="menu-entry" id="win-reset-all-ws"><span>Restore Default Workspaces</span></div>
+    <div class="menu-sep"></div>
+    <div class="menu-section-label">PANELS (CLICK TO OPEN OR FOCUS)</div>
+    <div class="window-panels-scroll">
+      ${PANEL_CATEGORIES.map(cat => `
+        <div class="menu-cat-label">${cat}</div>
+        ${(byCategory[cat] || []).map(p => {
+          const open = layoutManager.isPanelVisible(p.id);
+          return `
+            <div class="menu-entry" data-win-panel="${p.id}">
+              <span>${open ? '✓ ' : '   '}${p.title}</span>
+              ${p.status === 'planned' ? `<span class="menu-planned-tag">Planned</span>` : ''}
+            </div>
+          `;
+        }).join('')}
+      `).join('')}
+    </div>
+    <div class="menu-section-label">PANEL MANAGEMENT</div>
+    <div class="menu-entry" id="win-pm-tabbed"><span>Group Panels (Tabbed Mode)</span></div>
+    <div class="menu-entry" id="win-pm-stacked"><span>Stack Panels (Accordion Mode)</span></div>
+    ${focusedGroup?.mode === 'stacked' ? `<div class="menu-entry" id="win-pm-solo"><span>${focusedGroup.soloMode ? '✓ ' : ''}Toggle Stacked Solo Mode</span></div>` : ''}
+    <div class="menu-entry" id="win-pm-undock"><span>Undock Active Panel (Float)</span></div>
+    <div class="menu-entry" id="win-pm-max"><span>Maximize / Restore Active Group</span><span class="menu-shortcut">\`</span></div>
+    <div class="menu-entry" id="win-pm-close"><span>Close Active Panel</span></div>
+    <div class="menu-entry" id="win-pm-restore"><span>Restore Default Layout</span></div>
+  `;
+
+  dd.querySelectorAll('[data-win-ws]').forEach(el => el.addEventListener('click', (e) => {
+    if (e.target.dataset.winDelWs) {
+      e.stopPropagation();
+      deleteCustomWorkspace(e.target.dataset.winDelWs);
+      return;
+    }
+    switchWorkspace(el.dataset.winWs);
+  }));
+
+  dd.querySelectorAll('[data-win-panel]').forEach(el => el.addEventListener('click', () => {
+    const pid = el.dataset.winPanel;
+    layoutManager.focusOrOpenPanel(pid);
+    renderPanelById(pid);
+  }));
+
+  dd.querySelector('#win-save-ws')?.addEventListener('click', saveAsNewWorkspacePrompt);
+  dd.querySelector('#win-rename-ws')?.addEventListener('click', renameActiveCustomWorkspacePrompt);
+  dd.querySelector('#win-dup-ws')?.addEventListener('click', duplicateActiveWorkspace);
+  dd.querySelector('#win-reset-current-ws')?.addEventListener('click', () => { layoutManager.resetCurrentWorkspace(); renderAll(); });
+  dd.querySelector('#win-reset-all-ws')?.addEventListener('click', () => { layoutManager.resetAllWorkspaces(); applyWorkspaceUI(store.workspaceState.activeWorkspace); renderAll(); });
+
+  dd.querySelector('#win-pm-tabbed')?.addEventListener('click', () => {
+    const g = layoutManager.getFocusedGroup();
+    if (g) layoutManager.setGroupMode(g.id, 'tabbed');
+  });
+  dd.querySelector('#win-pm-stacked')?.addEventListener('click', () => {
+    const g = layoutManager.getFocusedGroup();
+    if (g) layoutManager.setGroupMode(g.id, 'stacked');
+  });
+  dd.querySelector('#win-pm-solo')?.addEventListener('click', () => {
+    const g = layoutManager.getFocusedGroup();
+    if (g) layoutManager.toggleGroupSoloMode(g.id);
+  });
+  dd.querySelector('#win-pm-undock')?.addEventListener('click', () => {
+    const g = layoutManager.getFocusedGroup();
+    if (g?.activePanelId) layoutManager.undockPanel(g.activePanelId);
+  });
+  dd.querySelector('#win-pm-max')?.addEventListener('click', () => layoutManager.toggleMaximizeGroup());
+  dd.querySelector('#win-pm-close')?.addEventListener('click', () => {
+    const g = layoutManager.getFocusedGroup();
+    if (g?.activePanelId) layoutManager.closePanel(g.activePanelId);
+  });
+  dd.querySelector('#win-pm-restore')?.addEventListener('click', () => { layoutManager.resetCurrentWorkspace(); renderAll(); });
+}
+
+function renderPanelById(panelId) {
+  if (!panelId) return;
+  if (panelId === 'properties') renderInspector();
+  else if (panelId === 'project') renderAssetsList();
+  else if (panelId === 'effects-library') renderEffectsLibrary();
+  else if (panelId === 'lut-browser') renderColorClipsGallery();
+  else if (panelId === 'audio-mixer') renderAudioConsole();
+  else if (panelId === 'export-settings') renderDeliverSettings();
+  else if (panelId === 'render-queue') renderDeliverQueue();
+  else if (panelId === 'history') renderHistoryPanel();
+  else if (panelId === 'markers') renderMarkersPanel();
+  else if (panelId === 'timeline') renderTimeline();
+  else if (panelId === 'program-monitor') renderProgramMonitor();
+  else if (panelId === 'video-scopes') {
+    const prg = document.getElementById('program-render-canvas');
+    if (prg) renderLiveColorScopes(prg);
+  }
+  else if (panelId === 'graph-editor') renderGraphEditorPanel(getPanelViewContext());
+  else renderAllSpecialistPanels(getPanelViewContext());
 }
 
 function syncPropertiesToggleButton() {
   const btn = document.getElementById('btn-toggle-properties');
-  if (btn) btn.classList.toggle('header-toggle-active', layoutManager.isPanelVisible('panel-inspector'));
-}
-
-function updateWindowPanelsCheckmarks() {
-  const layout = layoutManager.getActiveLayout();
-  const labels = {
-    'panel-inspector': 'Properties',
-    'panel-project': 'Project / Media Browser',
-    'panel-effects': 'Effects Library',
-    'monitors-pane': 'Source / Program Monitors',
-    'panel-timeline': 'Multitrack Timeline',
-    'panel-history': 'History',
-    'panel-markers': 'Markers',
-  };
-  for (const [id, label] of Object.entries(labels)) {
-    const chk = document.getElementById(`chk-${id}`);
-    if (chk) chk.textContent = `${layout.visiblePanels.includes(id) ? '✓' : '  '} ${label}`;
-  }
+  if (btn) btn.classList.toggle('header-toggle-active', layoutManager.isPanelVisible('properties'));
 }
 
 function initPanelFocusAndMaximize() {
-  document.querySelectorAll('.btn-maximize-panel').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const panel = btn.closest('.panel');
-      if (panel) toggleMaximizePanel(panel);
-    });
-  });
-
-  // Close panel buttons (NEVER alters timeline selection or project state!)
-  document.querySelectorAll('.btn-close-panel').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.closePanel;
-      if (id) layoutManager.closePanel(id);
-    });
-  });
-
-  // Header Properties toolbar toggle
+  // Header Properties toolbar toggle (NEVER alters timeline selection or project state!)
   document.getElementById('btn-toggle-properties')?.addEventListener('click', () => {
-    layoutManager.togglePanelVisibility('panel-inspector');
-    if (layoutManager.isPanelVisible('panel-inspector')) renderInspector();
+    layoutManager.togglePanelVisibility('properties');
+    if (layoutManager.isPanelVisible('properties')) renderInspector();
   });
 
   // Pin / Unpin Properties button (preserves inspected object without altering timeline selection!)
@@ -538,65 +802,6 @@ function initPanelFocusAndMaximize() {
   });
 
   document.getElementById('btn-markers-panel-add')?.addEventListener('click', addMarkerAtPlayhead);
-
-  document.querySelectorAll('.panel').forEach(panel => {
-    panel.addEventListener('mousedown', () => {
-      document.querySelectorAll('.panel').forEach(p => p.classList.remove('focused'));
-      panel.classList.add('focused');
-    });
-  });
-}
-
-function toggleMaximizePanel(panel) {
-  const isMaxed = panel.classList.contains('maximized');
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('maximized'));
-  if (!isMaxed) panel.classList.add('maximized');
-}
-
-function initSplitters() {
-  bindSplitter('splitter-left', () => ['panel-project', 'panel-effects', 'panel-color-clips']
-    .map(id => document.getElementById(id)).find(el => el && !el.classList.contains('hidden-panel') && !el.classList.contains('floating-panel')),
-    'width', false, 180, 620, (px) => layoutManager.updateSplitRatio('left', px));
-
-  bindSplitter('splitter-right', () => ['panel-inspector', 'panel-deliver-settings', 'panel-history', 'panel-markers']
-    .map(id => document.getElementById(id)).find(el => el && !el.classList.contains('hidden-panel') && !el.classList.contains('floating-panel')),
-    'width', true, 220, 640, (px) => layoutManager.updateSplitRatio('right', px));
-
-  bindSplitter('splitter-row-v', () => document.getElementById('workspace-bottom-row'),
-    'height', true, 160, 560, (px) => layoutManager.updateSplitRatio('bottom', px));
-
-  bindSplitter('splitter-monitors', () => document.getElementById('viewport-source'),
-    'width', false, 200, 750, null);
-}
-
-function bindSplitter(id, getTarget, dim, reverse, min, max, onFinishPx) {
-  const sp = document.getElementById(id);
-  if (!sp) return;
-  sp.addEventListener('mousedown', (e) => {
-    const target = getTarget();
-    if (!target) return;
-    e.preventDefault();
-    sp.classList.add('active');
-    const startPos = dim === 'width' ? e.clientX : e.clientY;
-    const startSize = dim === 'width' ? target.offsetWidth : target.offsetHeight;
-    let lastPx = startSize;
-
-    const onMove = (ev) => {
-      const curr = dim === 'width' ? ev.clientX : ev.clientY;
-      const delta = reverse ? (startPos - curr) : (curr - startPos);
-      lastPx = Math.max(min, Math.min(max, startSize + delta));
-      target.style[dim] = `${lastPx}px`;
-      target.style.flex = 'none';
-    };
-    const onUp = () => {
-      sp.classList.remove('active');
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-      if (onFinishPx) onFinishPx(lastPx);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  });
 }
 
 // ----------------------------------------------------
@@ -606,7 +811,30 @@ function initMediaIngestAndRelink() {
   const fileInput = document.getElementById('video-file-input');
   const relinkInput = document.getElementById('relink-file-input');
   const dropzone = document.getElementById('media-dropzone');
-  const trigger = () => fileInput?.click();
+  const trigger = async () => {
+    // Prefer File System Access API where supported (stores lightweight FileSystemFileHandle, zero binary duplication!)
+    if (typeof window.showOpenFilePicker === 'function') {
+      try {
+        const handles = await window.showOpenFilePicker({
+          multiple: true,
+          types: [{
+            description: 'Media Files (Video, Audio, Images)',
+            accept: {
+              'video/*': ['.mp4', '.mov', '.webm', '.mkv', '.m4v'],
+              'audio/*': ['.wav', '.mp3', '.aac', '.m4a', '.ogg', '.flac'],
+              'image/*': ['.png', '.jpg', '.jpeg', '.webp'],
+            },
+          }],
+        });
+        const files = await Promise.all(handles.map(h => h.getFile()));
+        if (files.length > 0) await handleFilesIngest(files, handles);
+        return;
+      } catch (err) {
+        if (err && err.name === 'AbortError') return; // User cancelled picker
+      }
+    }
+    fileInput?.click();
+  };
 
   dropzone?.addEventListener('click', trigger);
   dropzone?.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.borderColor = 'var(--accent)'; });
@@ -618,11 +846,38 @@ function initMediaIngestAndRelink() {
   });
 
   document.getElementById('btn-import-media')?.addEventListener('click', trigger);
+  document.getElementById('btn-mb-import')?.addEventListener('click', trigger);
   document.getElementById('src-empty-import-btn')?.addEventListener('click', trigger);
   document.getElementById('prg-empty-import-btn')?.addEventListener('click', trigger);
-  document.getElementById('prg-empty-title-btn')?.addEventListener('click', addTitleOverlayClip);
+  document.getElementById('prg-empty-title-btn')?.addEventListener('click', () => addTitleOverlayClip());
   document.getElementById('src-btn-relink')?.addEventListener('click', () => {
     if (store.sessionState.sourceAssetId) triggerRelinkForAsset(store.sessionState.sourceAssetId);
+  });
+
+  // Open Project JSON Archive
+  const openProjInput = document.getElementById('open-project-file-input');
+  openProjInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    openProjInput.value = '';
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (!parsed || !parsed.sequences) { alert('Invalid FRAMEFLOW project JSON file.'); return; }
+      store.projectState = parsed;
+      store.sessionState = createDefaultSessionState();
+      store.sessionState.activeSequenceId = parsed.activeSequenceId || Object.keys(parsed.sequences)[0];
+      store.runtimeState.decoders.clear();
+      await rehydrateAllMediaDecoders();
+      store.flushNow();
+      syncSessionControlsUI();
+      renderAll();
+    } catch {
+      alert('Failed to read project JSON file.');
+    }
+  });
+
+  document.getElementById('media-browser-search-input')?.addEventListener('input', () => {
+    renderMediaBrowserPanel(getPanelViewContext());
   });
 
   fileInput?.addEventListener('change', (e) => {
@@ -663,26 +918,30 @@ function createNewBin() {
   });
 }
 
-async function handleFilesIngest(files) {
-  for (const file of files) {
+async function handleFilesIngest(files, fileHandles = []) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const fileHandle = fileHandles[i] || null;
     const assetId = `asset_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const isVideo = file.type.startsWith('video');
     const isAudio = file.type.startsWith('audio');
 
-    store.projectState.assets[assetId] = {
+    const asset = {
       id: assetId,
       name: file.name,
       size: file.size,
+      lastModified: file.lastModified || 0,
       type: file.type || 'video/mp4',
       duration: 10,
       width: 1920,
       height: 1080,
       addedAt: new Date().toLocaleTimeString(),
     };
+    store.projectState.assets[assetId] = asset;
     store.projectState.bins.bin_root.assetIds.push(assetId);
 
-    // Persist real media blob in IndexedDB for refresh recovery
-    await store.saveMediaBlob(assetId, file);
+    // Media storage policy: prefer FileSystemFileHandle, else deduplicated fallback blob
+    await store.saveMediaAsset(asset, { fileOrBlob: file, fileHandle });
 
     // Create eager runtime decoder
     const decoder = createRuntimeDecoder(assetId, file);
@@ -832,14 +1091,12 @@ function initMonitorsGroup() {
       store.sessionState.sourceOutPoint = store.projectState.assets[store.sessionState.sourceAssetId]?.duration || srcVideo.duration || 10;
     }
     updateSourceScrubberUI();
-    store.scheduleSave(250);
   });
 
   document.getElementById('src-btn-mark-out')?.addEventListener('click', () => {
     if (!srcVideo || !store.sessionState.sourceAssetId) return;
     store.sessionState.sourceOutPoint = Math.max(store.sessionState.sourceInPoint + 0.1, srcVideo.currentTime);
     updateSourceScrubberUI();
-    store.scheduleSave(250);
   });
 
   document.getElementById('src-btn-goto-in')?.addEventListener('click', () => {
@@ -891,7 +1148,6 @@ function initMonitorsGroup() {
   document.getElementById('source-audio-channel')?.addEventListener('change', (e) => {
     store.sessionState.sourceAudioChannel = e.target.value;
     if (srcVideo) srcVideo.muted = (e.target.value === 'mute');
-    store.scheduleSave(250);
   });
 
   // Interactive Source Scrubber Bar
@@ -913,7 +1169,6 @@ function initMonitorsGroup() {
     const onUp = () => {
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
-      store.scheduleSave(250);
     };
     window.addEventListener('mousemove', onMove);
     window.addEventListener('mouseup', onUp);
@@ -939,28 +1194,24 @@ function initMonitorsGroup() {
   document.getElementById('prg-btn-loop')?.addEventListener('click', () => {
     store.sessionState.programLoop = !store.sessionState.programLoop;
     document.getElementById('prg-btn-loop')?.classList.toggle('active', store.sessionState.programLoop);
-    store.scheduleSave(250);
   });
 
   document.getElementById('btn-toggle-safe-margins')?.addEventListener('click', () => {
     store.sessionState.programSafeMargins = !store.sessionState.programSafeMargins;
     document.getElementById('safe-margins-overlay')?.classList.toggle('visible', store.sessionState.programSafeMargins);
     document.getElementById('btn-toggle-safe-margins')?.classList.toggle('active', store.sessionState.programSafeMargins);
-    store.scheduleSave(250);
   });
 
   document.getElementById('prg-btn-overlays')?.addEventListener('click', () => {
     store.sessionState.programOverlays = !store.sessionState.programOverlays;
     document.getElementById('program-overlays-hud')?.classList.toggle('visible', store.sessionState.programOverlays);
     document.getElementById('prg-btn-overlays')?.classList.toggle('active', store.sessionState.programOverlays);
-    store.scheduleSave(250);
   });
 
   document.getElementById('prg-btn-compare')?.addEventListener('click', () => {
     store.sessionState.programCompareMode = !store.sessionState.programCompareMode;
     document.getElementById('prg-btn-compare')?.classList.toggle('active', store.sessionState.programCompareMode);
     renderProgramMonitor();
-    store.scheduleSave(250);
   });
 
   document.getElementById('prg-btn-fullscreen')?.addEventListener('click', () => {
@@ -976,12 +1227,10 @@ function initMonitorsGroup() {
     const scaleMap = { fit: '100%', '100%': '100%', '50%': '50%' };
     if (canvas) canvas.style.maxHeight = scaleMap[e.target.value] || '100%';
     if (srcEl) srcEl.style.maxHeight = scaleMap[e.target.value] || '100%';
-    store.scheduleSave(250);
   });
 
   document.getElementById('monitor-res-select')?.addEventListener('change', (e) => {
     store.sessionState.programPlaybackResolution = e.target.value;
-    store.scheduleSave(250);
   });
 }
 
@@ -1018,7 +1267,6 @@ function clearSourceInOut() {
   store.sessionState.sourceInPoint = 0;
   store.sessionState.sourceOutPoint = asset?.duration || 0;
   updateSourceScrubberUI();
-  store.scheduleSave(250);
 }
 
 function updateSourceScrubberUI() {
@@ -1101,54 +1349,51 @@ function loadAssetIntoSourceMonitor(assetId, { preserveInOut = false, switchTab 
   if (switchTab && store.sessionState.monitorMode === 'single') {
     switchMonitorTab('source');
   }
-  store.scheduleSave(200);
 }
 
 function switchMonitorTab(tab) {
   store.sessionState.activeMonitorTab = tab;
+  const targetPanel = tab === 'source' ? 'source-monitor' : 'program-monitor';
+  layoutManager.focusOrOpenPanel(targetPanel);
   updateMonitorsLayoutUI();
-  store.scheduleSave(200);
 }
 
 function toggleMonitorSplitView() {
-  store.sessionState.monitorMode = store.sessionState.monitorMode === 'single' ? 'split' : 'single';
+  const layout = layoutManager.getActiveLayout();
+  const srcGrp = findGroupContainingPanel(layout.root, 'source-monitor');
+  const prgGrp = findGroupContainingPanel(layout.root, 'program-monitor');
+
+  if (srcGrp && prgGrp && srcGrp.id !== prgGrp.id) {
+    // Merge Source back into Program's tab group (Single Tabbed Viewer)
+    movePanelToZone(layout, 'source-monitor', prgGrp.id, 'center', 0);
+    store.sessionState.monitorMode = 'single';
+  } else if (prgGrp) {
+    // Split Source side-by-side to the left of Program Monitor!
+    if (!srcGrp) layoutManager.openPanel('source-monitor', prgGrp.id);
+    movePanelToZone(layout, 'source-monitor', prgGrp.id, 'left');
+    store.sessionState.monitorMode = 'split';
+  } else {
+    switchWorkspace('dual-viewer');
+    return;
+  }
+
+  layoutManager.applyActiveWorkspaceLayout();
+  renderWindowMenu();
   updateMonitorsLayoutUI();
-  store.scheduleSave(200);
+  store.scheduleWorkspaceSave('monitor-split-toggle', 300);
 }
 
 function updateMonitorsLayoutUI() {
-  const vpSource = document.getElementById('viewport-source');
-  const vpProgram = document.getElementById('viewport-program');
-  const splitter = document.getElementById('splitter-monitors');
-  const tabSource = document.getElementById('tab-monitor-source');
-  const tabProgram = document.getElementById('tab-monitor-program');
-  const splitLabel = document.getElementById('split-view-btn-label');
+  const layout = layoutManager.getActiveLayout();
+  const srcGrp = findGroupContainingPanel(layout.root, 'source-monitor');
+  const prgGrp = findGroupContainingPanel(layout.root, 'program-monitor');
+  const isSplit = Boolean(srcGrp && prgGrp && srcGrp.id !== prgGrp.id);
+  store.sessionState.monitorMode = isSplit ? 'split' : 'single';
 
-  if (!vpSource || !vpProgram) return;
-  if (store.sessionState.monitorMode === 'split') {
-    vpSource.style.display = 'flex'; vpSource.style.flex = '1';
-    vpProgram.style.display = 'flex'; vpProgram.style.flex = '1';
-    if (splitter) splitter.style.display = 'block';
-    tabSource?.classList.add('active');
-    tabProgram?.classList.add('active');
-    if (splitLabel) splitLabel.textContent = 'Single View';
-  } else {
-    if (splitter) splitter.style.display = 'none';
-    if (splitLabel) splitLabel.textContent = 'Split View';
-    if (store.sessionState.activeMonitorTab === 'source') {
-      vpSource.style.display = 'flex'; vpSource.style.flex = '1';
-      vpProgram.style.display = 'none';
-      tabSource?.classList.add('active');
-      tabProgram?.classList.remove('active');
-      updateSourceScrubberUI();
-    } else {
-      vpSource.style.display = 'none';
-      vpProgram.style.display = 'flex'; vpProgram.style.flex = '1';
-      tabSource?.classList.remove('active');
-      tabProgram?.classList.add('active');
-      renderProgramMonitor();
-    }
-  }
+  const splitLabel = document.getElementById('split-view-btn-label');
+  if (splitLabel) splitLabel.textContent = isSplit ? 'Single Tab' : 'Dual View';
+  renderProgramMonitor();
+  updateSourceScrubberUI();
 }
 
 function syncSessionControlsUI() {
@@ -1298,11 +1543,13 @@ function insertSourceOrAssetToTimeline(assetId, startTime, { mode = 'insert', us
   }
 }
 
-function addTitleOverlayClip() {
+function addTitleOverlayClip(presetText = null, posY = 0) {
   const seq = getActiveSequence();
   const overlayTrack = seq.tracks.find(t => t.id === 'track_v2') || seq.tracks.find(t => t.type === 'video');
   if (!overlayTrack) return;
-  const text = prompt('Enter Title Text:', 'FRAMEFLOW STUDIO') || 'FRAMEFLOW STUDIO';
+  const text = typeof presetText === 'string' && presetText.trim()
+    ? presetText.trim()
+    : (prompt('Enter Title Text:', 'FRAMEFLOW STUDIO') || 'FRAMEFLOW STUDIO');
   executeCommand('Add Title Overlay', () => {
     const id = `clip_title_${Date.now()}`;
     seq.clips.push({
@@ -1310,13 +1557,14 @@ function addTitleOverlayClip() {
       assetId: null,
       isTitle: true,
       titleText: text,
+      titleFontSize: posY > 0 ? 54 : 92,
       name: `Title: ${text}`,
       trackId: overlayTrack.id,
       timelineStart: store.sessionState.playheadTime,
       timelineDuration: 5,
       sourceStart: 0,
       speed: 1,
-      transform: { positionX: 0, positionY: 0, scale: 1, rotation: 0, opacity: 1 },
+      transform: { positionX: 0, positionY: posY || 0, scale: 1, rotation: 0, opacity: 1 },
       colorEffects: { exposure: 0, contrast: 1, brightness: 0, saturation: 1, temperature: 0, tint: 0, gamma: 1, lift: 0, gain: 0, invert: false },
       audio: { volumeDb: 0, pan: 0, fadeIn: 0, fadeOut: 0 },
       transitionIn: null,
@@ -1341,10 +1589,10 @@ function toggleSequencePlayback() {
 
 function seekSequence(timeSec) {
   const seq = getActiveSequence();
+  // Playhead scrubbing is temporary interaction state — NEVER marks project dirty or triggers save!
   store.sessionState.playheadTime = Math.max(0, Math.min(seq.duration, timeSec));
   updatePlayheadPositionUI();
   renderProgramMonitor();
-  store.scheduleSave(300);
 }
 
 /**
@@ -1358,7 +1606,7 @@ function renderSequenceFrameAtTime(ctx, width, height, timeSec) {
   ctx.fillRect(0, 0, width, height);
 
   const visibleVideoTracks = seq.tracks.filter(t => t.type === 'video' && t.visible);
-  const clipsAtTime = seq.clips.filter(c => timeSec >= c.timelineStart && timeSec <= c.timelineStart + c.timelineDuration);
+  const clipsAtTime = seq.clips.filter(c => !c.disabled && timeSec >= c.timelineStart && timeSec <= c.timelineStart + c.timelineDuration);
 
   const buildFilterString = (clip) => {
     const c = clip.colorEffects || {};
@@ -1555,7 +1803,7 @@ function renderProgramMonitor() {
   const ctx = canvas.getContext('2d');
   renderSequenceFrameAtTime(ctx, canvas.width, canvas.height, t);
 
-  if (store.workspaceState.activeWorkspace === 'color') {
+  if (layoutManager.isPanelVisible('video-scopes')) {
     renderLiveColorScopes(canvas);
   }
 }
@@ -1576,6 +1824,8 @@ function startPlaybackAndTelemetryLoop() {
       fpsWindowStart = now;
       const fpsEl = document.getElementById('status-fps-label');
       if (fpsEl) fpsEl.textContent = `${store.runtimeState.measuredFps} FPS`;
+      const perfFps = document.getElementById('perf-panel-fps');
+      if (perfFps) perfFps.textContent = `${store.runtimeState.measuredFps} FPS`;
     }
 
     if (store.runtimeState.isPlayingSequence) {
@@ -1584,6 +1834,8 @@ function startPlaybackAndTelemetryLoop() {
         store.runtimeState.droppedFrames++;
         const dropEl = document.getElementById('status-drops-label');
         if (dropEl) dropEl.textContent = String(store.runtimeState.droppedFrames);
+        const perfDrops = document.getElementById('perf-panel-drops');
+        if (perfDrops) perfDrops.textContent = String(store.runtimeState.droppedFrames);
       }
       store.sessionState.playheadTime += delta * store.runtimeState.playbackSpeed;
       if (store.sessionState.playheadTime >= seq.duration) {
@@ -1605,7 +1857,7 @@ function startPlaybackAndTelemetryLoop() {
 
     const seq = getActiveSequence();
     const t = store.sessionState.playheadTime;
-    const hasActive = seq.clips.some(c => t >= c.timelineStart && t <= c.timelineStart + c.timelineDuration);
+    const hasActive = seq.clips.some(c => !c.disabled && t >= c.timelineStart && t <= c.timelineStart + c.timelineDuration);
     const meters = audioEngine.getMasterMetering(store.runtimeState.isPlayingSequence, hasActive);
 
     const barL = document.getElementById('vu-bar-l');
@@ -1615,13 +1867,26 @@ function startPlaybackAndTelemetryLoop() {
     if (barR) barR.style.height = `${meters.rightPct}%`;
     if (dbText) dbText.textContent = meters.peakDb <= -59 ? '-∞' : `${meters.peakDb.toFixed(0)}`;
 
-    if (store.workspaceState.activeWorkspace === 'audio') {
-      const lufsEl = document.getElementById('lufs-integrated-val');
-      const peakEl = document.getElementById('lufs-truepeak-val');
-      const momEl  = document.getElementById('lufs-momentary-val');
-      if (lufsEl) lufsEl.textContent = meters.integratedLufs <= -59 ? '-∞ LUFS' : `${meters.integratedLufs.toFixed(1)} LUFS`;
-      if (peakEl) peakEl.textContent = meters.truePeak <= -59 ? '-∞ dBTP' : `${meters.truePeak.toFixed(1)} dBTP`;
-      if (momEl)  momEl.textContent  = meters.momentaryLufs <= -59 ? '-∞ LUFS' : `${meters.momentaryLufs.toFixed(1)} LUFS`;
+    const pBarL = document.getElementById('panel-vu-l');
+    const pBarR = document.getElementById('panel-vu-r');
+    const pDb = document.getElementById('panel-vu-db');
+    if (pBarL) pBarL.style.height = `${meters.leftPct}%`;
+    if (pBarR) pBarR.style.height = `${meters.rightPct}%`;
+    if (pDb) pDb.textContent = meters.peakDb <= -59 ? '-∞ dBFS' : `${meters.peakDb.toFixed(1)} dBFS`;
+
+    const intStr = meters.integratedLufs <= -59 ? '-∞ LUFS' : `${meters.integratedLufs.toFixed(1)} LUFS`;
+    const tpStr  = meters.truePeak <= -59 ? '-∞ dBTP' : `${meters.truePeak.toFixed(1)} dBTP`;
+    const momStr = meters.momentaryLufs <= -59 ? '-∞ LUFS' : `${meters.momentaryLufs.toFixed(1)} LUFS`;
+
+    for (const [id, val] of [
+      ['lufs-integrated-val', intStr], ['lufs-truepeak-val', tpStr], ['lufs-momentary-val', momStr],
+      ['panel-lufs-int', intStr], ['panel-lufs-tp', tpStr], ['panel-lufs-mom', momStr],
+    ]) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = val;
+    }
+
+    if (layoutManager.isPanelVisible('audio-mixer')) {
       document.querySelectorAll('.strip-mini-fill').forEach((fill, idx) => {
         const jitter = store.runtimeState.isPlayingSequence && hasActive ? Math.max(8, meters.leftPct - idx * 6 + Math.sin(now * 0.01 + idx) * 8) : 0;
         fill.style.height = `${Math.max(0, Math.min(100, jitter))}%`;
@@ -1649,12 +1914,10 @@ function initTimeline() {
   document.getElementById('btn-link-toggle')?.addEventListener('click', () => {
     store.sessionState.isLinkedSelection = !store.sessionState.isLinkedSelection;
     document.getElementById('btn-link-toggle')?.classList.toggle('active', store.sessionState.isLinkedSelection);
-    store.scheduleSave(200);
   });
   document.getElementById('btn-synclock-toggle')?.addEventListener('click', () => {
     store.sessionState.isSyncLockGlobal = !store.sessionState.isSyncLockGlobal;
     document.getElementById('btn-synclock-toggle')?.classList.toggle('active', store.sessionState.isSyncLockGlobal);
-    store.scheduleSave(200);
   });
   document.getElementById('btn-toggle-graph-drawer')?.addEventListener('click', () => {
     const drawer = document.getElementById('motion-graph-drawer');
@@ -1670,11 +1933,10 @@ function initTimeline() {
   document.getElementById('btn-add-v-track')?.addEventListener('click', () => addTrack('video'));
   document.getElementById('btn-add-a-track')?.addEventListener('click', () => addTrack('audio'));
 
-  // Persist timeline horizontal scroll
+  // Track timeline horizontal scroll in memory (temporary UI state — never triggers project save!)
   const scrollArea = document.getElementById('timeline-scroll-area');
   scrollArea?.addEventListener('scroll', () => {
     store.sessionState.timelineScrollLeft = scrollArea.scrollLeft;
-    store.scheduleSave(500);
   });
 
   // Timeline Display Settings Popover
@@ -1695,7 +1957,6 @@ function initTimeline() {
   tdsMap.forEach(([id, key]) => {
     document.getElementById(id)?.addEventListener('change', (e) => {
       store.sessionState.timelineDisplay[key] = e.target.checked;
-      store.scheduleSave(200);
       renderTimeline();
     });
   });
@@ -1743,17 +2004,15 @@ function initTimeline() {
 
 function zoomTimeline(factor) {
   store.sessionState.timelineZoom = Math.max(8, Math.min(180, store.sessionState.timelineZoom * factor));
-  store.scheduleSave(300);
   renderTimeline();
 }
 
 function toggleSnapping() {
   store.sessionState.isSnapping = !store.sessionState.isSnapping;
   document.getElementById('btn-snap-toggle')?.classList.toggle('active', store.sessionState.isSnapping);
-  store.scheduleSave(200);
 }
 
-function setTool(toolName, save = true) {
+function setTool(toolName) {
   store.sessionState.activeTool = toolName;
   document.querySelectorAll('.timeline-toolbar .tool-btn').forEach(btn => {
     if (btn.id.startsWith('tool-')) btn.classList.remove('active');
@@ -1763,7 +2022,6 @@ function setTool(toolName, save = true) {
   if (area) {
     area.style.cursor = toolName === 'razor' ? 'crosshair' : (toolName === 'hand' ? 'grab' : (toolName === 'zoom' ? 'zoom-in' : 'default'));
   }
-  if (save) store.scheduleSave(200);
 }
 
 function addMarkerAtPlayhead() {
@@ -1813,7 +2071,6 @@ function fitTimelineToSequence() {
   const seq = getActiveSequence();
   if (!area || !seq) return;
   store.sessionState.timelineZoom = Math.max(8, (area.clientWidth - 40) / (seq.duration || 60));
-  store.scheduleSave(300);
   renderTimeline();
 }
 
@@ -1940,7 +2197,7 @@ function renderTimeline() {
         const syncLabel = syncOffset !== 0 ? `${syncOffset > 0 ? '+' : ''}${syncOffset.toFixed(1)}s` : '';
 
         lanesHtml += `
-          <div class="timeline-clip-block ${isAudio ? 'audio' : ''} ${isSel ? 'selected' : ''}" data-id="${clip.id}" style="left: ${leftPx}px; width: ${widthPx}px; ${offline ? 'background: #7F1D1D; border-color: var(--error);' : (clip.isTitle ? 'background: #5B21B6;' : '')}">
+          <div class="timeline-clip-block ${isAudio ? 'audio' : ''} ${isSel ? 'selected' : ''}" data-id="${clip.id}" style="left: ${leftPx}px; width: ${widthPx}px; ${clip.disabled ? 'opacity: 0.42;' : ''} ${offline ? 'background: #7F1D1D; border-color: var(--error);' : (clip.isTitle ? 'background: #5B21B6;' : '')}">
             <div class="trim-handle left"></div>
             ${clip.transitionIn ? `<div class="clip-transition-badge" title="${clip.transitionIn.name}">T</div>` : ''}
             <div style="display: flex; align-items: center; gap: 3px; overflow: hidden; pointer-events: none; padding-left: ${clip.transitionIn ? '14px' : '0'};">
@@ -2523,7 +2780,7 @@ function renderAudioConsole() {
   `;
 
   body.querySelectorAll('.channel-strip[data-strip-id]').forEach(el => el.addEventListener('click', () => {
-    store.sessionState.selectedTrackId = el.dataset.stripId; store.scheduleSave(200); renderAudioConsole();
+    store.sessionState.selectedTrackId = el.dataset.stripId; renderAudioConsole();
   }));
   body.querySelectorAll('.strip-fader').forEach(f => f.addEventListener('input', (e) => {
     const tr = audioTracks.find(t => t.id === f.dataset.trackId); if (!tr) return;
@@ -2946,7 +3203,6 @@ function renderInspector() {
   if (!container) return;
 
   const seq = getActiveSequence();
-  const ws = store.workspaceState.activeWorkspace;
   const statusInfo = document.getElementById('status-clip-info');
 
   // Update Project Panel compact asset status footer
@@ -2957,68 +3213,7 @@ function renderInspector() {
     projFooter.innerHTML = `<span>${assetsCount} asset${assetsCount === 1 ? '' : 's'}${offlineCount > 0 ? ` · <strong style="color:var(--error);">${offlineCount} offline</strong>` : ''}</span><span>IndexedDB</span>`;
   }
 
-  // MEDIA WORKSPACE: Source Asset Metadata
-  if (ws === 'media') {
-    if (tabsBar) tabsBar.style.display = 'none';
-    const asset = store.sessionState.sourceAssetId ? store.projectState.assets[store.sessionState.sourceAssetId] : null;
-    if (!asset) {
-      container.innerHTML = `<div style="padding: 18px 12px; color: var(--text-muted); font-size: 11.5px; text-align: center;">Select a media asset to inspect source metadata and availability.</div>`;
-      return;
-    }
-    const dec = store.runtimeState.decoders.get(asset.id);
-    container.innerHTML = `
-      <div class="inspector-accordion">
-        <div class="accordion-header"><span>Source Metadata</span><span class="icon icon-sm">expand_more</span></div>
-        <div class="accordion-content">
-          <div class="field-row"><div class="field-header"><span>Filename</span><span class="field-val">${asset.name}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Status</span><span class="field-val" style="color: ${dec?.missing ? 'var(--error)' : 'var(--success)'};">${dec?.missing ? 'MEDIA OFFLINE' : 'Online'}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Dimensions</span><span class="field-val">${asset.width} × ${asset.height}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Duration</span><span class="field-val">${formatTimecode(asset.duration, seq.fps)}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>MIME / Codec</span><span class="field-val">${asset.type}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>File Size</span><span class="field-val">${(asset.size / (1024 * 1024)).toFixed(2)} MB</span></div></div>
-          ${dec?.missing ? `<button class="action-btn-compact primary" id="insp-relink-asset-btn">Relink Media File...</button>` : ''}
-        </div>
-      </div>
-    `;
-    document.getElementById('insp-relink-asset-btn')?.addEventListener('click', () => triggerRelinkForAsset(asset.id));
-    return;
-  }
-
-  // COLOR WORKSPACE: Live Pixel Scopes + Primary Grade
-  if (ws === 'color') {
-    if (tabsBar) tabsBar.style.display = 'none';
-    const clip = getActiveClip();
-    const c = clip?.colorEffects || { exposure: 0, contrast: 1, saturation: 1, temperature: 0 };
-    container.innerHTML = `
-      <div class="inspector-accordion">
-        <div class="accordion-header"><span>Live RGB Histogram Scope</span><span class="icon icon-sm">expand_more</span></div>
-        <div class="accordion-content">
-          <canvas id="live-rgb-scope-canvas" class="scope-canvas"></canvas>
-          <div style="font-size: 10px; color: var(--text-muted); text-align: center;">Real-time pixel sample from Program Monitor</div>
-        </div>
-      </div>
-      <div class="inspector-accordion">
-        <div class="accordion-header"><span>Primary Grade · ${clip ? clip.name : 'No Clip Selected'}</span><span class="icon icon-sm">expand_more</span></div>
-        <div class="accordion-content">
-          <div class="field-row"><div class="field-header"><span>Exposure</span><span class="field-val" id="disp-exp">${c.exposure.toFixed(2)}</span></div><input type="range" id="insp-exp" min="-2" max="2" step="0.05" value="${c.exposure}"></div>
-          <div class="field-row"><div class="field-header"><span>Contrast</span><span class="field-val" id="disp-cont">${c.contrast.toFixed(2)}</span></div><input type="range" id="insp-cont" min="0" max="2" step="0.05" value="${c.contrast}"></div>
-          <div class="field-row"><div class="field-header"><span>Saturation</span><span class="field-val" id="disp-sat">${c.saturation.toFixed(2)}</span></div><input type="range" id="insp-sat" min="0" max="2" step="0.05" value="${c.saturation}"></div>
-          <div class="field-row"><div class="field-header"><span>Temperature</span><span class="field-val" id="disp-temp">${c.temperature || 0}</span></div><input type="range" id="insp-temp" min="-100" max="100" step="1" value="${c.temperature || 0}"></div>
-        </div>
-      </div>
-    `;
-    if (clip) {
-      bindSlider('insp-exp', 'disp-exp', v => { clip.colorEffects.exposure = v; }, v => v.toFixed(2));
-      bindSlider('insp-cont', 'disp-cont', v => { clip.colorEffects.contrast = v; }, v => v.toFixed(2));
-      bindSlider('insp-sat', 'disp-sat', v => { clip.colorEffects.saturation = v; }, v => v.toFixed(2));
-      bindSlider('insp-temp', 'disp-temp', v => { clip.colorEffects.temperature = v; }, v => String(v));
-    }
-    const prg = document.getElementById('program-render-canvas');
-    if (prg) renderLiveColorScopes(prg);
-    return;
-  }
-
-  // CONTEXTUAL 5-TAB PROPERTIES PANEL (Edit / Motion)
+  // CONTEXTUAL 5-TAB PROPERTIES PANEL (Consistent across every workspace!)
   const ctx = resolvePropertiesContext(seq, store.sessionState.selectedClipIds, uiState.pinnedClipId);
   if (!ctx.pinned && uiState.pinnedClipId) {
     // Pinned clip was deleted -> clear stale pin cleanly
@@ -3475,8 +3670,11 @@ function openProjectSettingsModal() {
   `;
   document.getElementById('btn-save-proj-settings')?.addEventListener('click', () => {
     const val = document.getElementById('ps-title')?.value?.trim();
-    if (val) p.title = val;
-    store.flushNow();
+    if (val && val !== p.title) {
+      p.title = val;
+      store.markProjectDirty('project-settings');
+      store.saveProjectNow({ reason: 'project-settings', manual: true });
+    }
     renderAll();
     modal.classList.remove('active');
   });
@@ -3536,56 +3734,139 @@ function bindSlider(sId, dId, updateFn, fmtFn) {
 }
 
 // ----------------------------------------------------
-// 14. Menus, Modals & Keyboard Engine
+// 14. Menus, Modals & Central Shortcut Keyboard Engine
 // ----------------------------------------------------
+function getPanelViewContext() {
+  return {
+    store,
+    audioEngine,
+    uiState,
+    getActiveSequence,
+    getActiveClip,
+    setSelectedClipIds,
+    formatTimecode,
+    executeCommand,
+    bindAccordionToggles,
+    bindSlider,
+    renderProgramMonitor,
+    renderTimeline,
+    renderAll,
+    seekSequence,
+    loadAssetIntoSourceMonitor,
+    insertSourceOrAssetToTimeline,
+    triggerRelinkForAsset,
+    applyTransitionToActiveClip,
+    addTitleOverlayClip,
+    resetClipProperties,
+    openProjectSettingsModal,
+    openSequenceSettingsModal,
+    openStorageDiagnosticsPanel: () => layoutManager.focusOrOpenPanel('storage-diagnostics'),
+  };
+}
+
+function toggleClipEnabledAction() {
+  const clip = getActiveClip();
+  if (!clip) return;
+  executeCommand(clip.disabled ? 'Enable Clip' : 'Disable Clip', () => {
+    clip.disabled = !clip.disabled;
+  });
+}
+
+function cutActiveClipAction() {
+  const c = getActiveClip();
+  if (!c) return;
+  store.runtimeState.clipboardClip = JSON.parse(JSON.stringify(c));
+  deleteActiveClip();
+}
+
 function initMenus() {
-  document.getElementById('m-file-new')?.addEventListener('click', () => {
+  // FILE
+  document.getElementById('m-file-new')?.addEventListener('click', async () => {
     if (!confirm('Create a new empty project?')) return;
-    store.projectState = createDefaultProjectState();
+    // Save any pending changes on the current project before switching to a new project
+    if (store.autosave.hasPendingChanges()) {
+      await store.saveProjectNow({ reason: 'project-switch-save', manual: false });
+    }
+    const newId = `proj_${Date.now()}`;
+    store.projectState = createDefaultProjectState(newId);
     store.sessionState = createDefaultSessionState();
+    store.sessionState.activeProjectId = newId;
     store.runtimeState.decoders.clear();
-    store.flushNow();
+    store.autosave.resetBaseline({ savedAt: null, revision: 0 });
+    store.markProjectDirty('new-project');
+    await store.saveProjectNow({ reason: 'new-project', manual: true });
     syncSessionControlsUI();
     renderAll();
   });
-  document.getElementById('m-file-save')?.addEventListener('click', () => store.flushNow());
-  document.getElementById('m-file-save-as')?.addEventListener('click', () => {
+  document.getElementById('m-file-open')?.addEventListener('click', () => document.getElementById('open-project-file-input')?.click());
+  document.getElementById('m-file-save')?.addEventListener('click', () => store.saveProjectNow({ reason: 'manual-save', manual: true }));
+  document.getElementById('m-file-save-as')?.addEventListener('click', async () => {
     const t = prompt('Save Project As:', store.projectState.title);
-    if (t) { store.projectState.title = t; store.flushNow(); renderAll(); }
+    if (t && t.trim() && t.trim() !== store.projectState.title) {
+      store.projectState.title = t.trim();
+      store.markProjectDirty('save-as');
+      await store.saveProjectNow({ reason: 'save-as', manual: true });
+      renderAll();
+    }
   });
   document.getElementById('m-file-import')?.addEventListener('click', () => document.getElementById('video-file-input')?.click());
   document.getElementById('m-file-export')?.addEventListener('click', () => switchWorkspace('deliver'));
   document.getElementById('btn-goto-deliver')?.addEventListener('click', () => switchWorkspace('deliver'));
+  document.getElementById('m-file-project-info')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('project-info'));
   document.getElementById('m-file-archive')?.addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(store.projectState, null, 2)], { type: 'application/json' });
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `${store.projectState.title.replace(/\s+/g, '_')}.frameflow.json`; a.click();
   });
 
+  // EDIT
   document.getElementById('m-edit-undo')?.addEventListener('click', undo);
   document.getElementById('m-edit-redo')?.addEventListener('click', redo);
   document.getElementById('btn-undo')?.addEventListener('click', undo);
   document.getElementById('btn-redo')?.addEventListener('click', redo);
+  document.getElementById('m-edit-cut')?.addEventListener('click', cutActiveClipAction);
   document.getElementById('m-edit-copy')?.addEventListener('click', () => { const c = getActiveClip(); if (c) store.runtimeState.clipboardClip = JSON.parse(JSON.stringify(c)); });
   document.getElementById('m-edit-paste')?.addEventListener('click', pasteClipboardClip);
   document.getElementById('m-edit-delete')?.addEventListener('click', deleteActiveClip);
+  document.getElementById('m-edit-prefs')?.addEventListener('click', openProjectSettingsModal);
   document.getElementById('m-edit-shortcuts')?.addEventListener('click', openShortcutsModal);
 
+  // PROJECT
   document.getElementById('m-proj-settings')?.addEventListener('click', openProjectSettingsModal);
-  document.getElementById('m-proj-rename')?.addEventListener('click', () => { const t = prompt('Rename Project:', store.projectState.title); if (t) { store.projectState.title = t; store.flushNow(); renderAll(); } });
+  document.getElementById('m-proj-rename')?.addEventListener('click', () => {
+    const t = prompt('Rename Project:', store.projectState.title);
+    if (t && t.trim() && t.trim() !== store.projectState.title) {
+      store.projectState.title = t.trim();
+      store.markProjectDirty('rename-project');
+      store.saveProjectNow({ reason: 'rename-project', manual: true });
+      renderAll();
+    }
+  });
+  document.getElementById('m-proj-assets')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('project'));
+  document.getElementById('m-proj-browser')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('media-browser'));
   document.getElementById('m-proj-newbin')?.addEventListener('click', createNewBin);
+  document.getElementById('m-proj-relink')?.addEventListener('click', () => {
+    const id = getActiveClip()?.assetId || store.sessionState.sourceAssetId;
+    if (id) triggerRelinkForAsset(id);
+    else layoutManager.focusOrOpenPanel('media-dependencies');
+  });
+  document.getElementById('m-proj-deps')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('media-dependencies'));
   document.getElementById('m-proj-media')?.addEventListener('click', () => switchWorkspace('media'));
 
+  // CLIP
   document.getElementById('m-clip-insert')?.addEventListener('click', () => { if (store.sessionState.sourceAssetId) insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'insert', useSourceRange: true }); });
   document.getElementById('m-clip-overwrite')?.addEventListener('click', () => { if (store.sessionState.sourceAssetId) insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'overwrite', useSourceRange: true }); });
   document.getElementById('m-clip-split')?.addEventListener('click', () => { const id = getSelectedClipId(); if (id) splitClipAction(id, store.sessionState.playheadTime); });
   document.getElementById('m-clip-speed')?.addEventListener('click', () => { const c = getActiveClip(); if (c) editClipSpeedPrompt(c); });
+  document.getElementById('m-clip-enable')?.addEventListener('click', toggleClipEnabledAction);
   document.getElementById('m-clip-link-clips')?.addEventListener('click', linkSelectedClipsAction);
   document.getElementById('m-clip-unlink-clips')?.addEventListener('click', unlinkSelectedClipsAction);
   document.getElementById('m-clip-select-linked')?.addEventListener('click', () => { const id = getSelectedClipId(); if (id) selectLinkedClipsAction(id); });
   document.getElementById('m-clip-move-sync')?.addEventListener('click', () => { const id = getSelectedClipId(); if (id) moveIntoSyncAction(id); });
   document.getElementById('m-clip-link')?.addEventListener('click', () => document.getElementById('btn-link-toggle')?.click());
+  document.getElementById('m-clip-reveal')?.addEventListener('click', () => { const c = getActiveClip(); if (c?.assetId) revealOriginalMedia(c.assetId); });
   document.getElementById('m-clip-reset')?.addEventListener('click', () => { const c = getActiveClip(); if (c) resetClipProperties(c); });
 
+  // SEQUENCE
   document.getElementById('m-seq-new')?.addEventListener('click', () => {
     const n = prompt('New Sequence Name:', 'Sequence 02'); if (!n) return;
     const id = `seq_${Date.now()}`;
@@ -3606,26 +3887,54 @@ function initMenus() {
   document.getElementById('m-seq-settings')?.addEventListener('click', openSequenceSettingsModal);
   document.getElementById('m-seq-render-preview')?.addEventListener('click', renderProgramMonitor);
 
-  document.getElementById('m-time-snap')?.addEventListener('click', toggleSnapping);
+  // TIMELINE
   document.getElementById('m-time-add-v')?.addEventListener('click', () => addTrack('video'));
   document.getElementById('m-time-add-a')?.addEventListener('click', () => addTrack('audio'));
-  document.getElementById('m-time-marker')?.addEventListener('click', addMarkerAtPlayhead);
+  document.getElementById('m-time-snap')?.addEventListener('click', toggleSnapping);
+  document.getElementById('m-time-synclock')?.addEventListener('click', () => document.getElementById('btn-synclock-toggle')?.click());
+  document.getElementById('m-time-zoom-in')?.addEventListener('click', () => zoomTimeline(1.3));
+  document.getElementById('m-time-zoom-out')?.addEventListener('click', () => zoomTimeline(1 / 1.3));
   document.getElementById('m-time-fit')?.addEventListener('click', fitTimelineToSequence);
+  document.getElementById('m-time-marker')?.addEventListener('click', addMarkerAtPlayhead);
+  document.getElementById('m-time-index')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('timeline-index'));
 
-  document.getElementById('m-gfx-title')?.addEventListener('click', addTitleOverlayClip);
+  // GRAPHICS
+  document.getElementById('m-gfx-title')?.addEventListener('click', () => addTitleOverlayClip());
+  document.getElementById('m-gfx-essential')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('essential-graphics'));
   document.getElementById('m-gfx-safe')?.addEventListener('click', () => document.getElementById('btn-toggle-safe-margins')?.click());
-  document.getElementById('m-gfx-motion')?.addEventListener('click', () => switchWorkspace('motion'));
-  document.getElementById('m-fx-transitions')?.addEventListener('click', () => switchWorkspace('motion'));
+  document.getElementById('m-gfx-workspace')?.addEventListener('click', () => switchWorkspace('graphics'));
+
+  // EFFECTS
+  document.getElementById('m-fx-library')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('effects-library'));
+  document.getElementById('m-fx-controls')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('effect-controls'));
+  document.getElementById('m-fx-transitions')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('transition-browser'));
   document.getElementById('m-fx-apply-dissolve')?.addEventListener('click', () => applyTransitionToActiveClip(TRANSITION_CATALOG[0]));
   document.getElementById('m-fx-reset')?.addEventListener('click', () => { const c = getActiveClip(); if (c) resetClipProperties(c); });
-  document.getElementById('m-audio-mixer')?.addEventListener('click', () => switchWorkspace('audio'));
-  document.getElementById('m-audio-routing')?.addEventListener('click', () => switchWorkspace('audio'));
-  document.getElementById('m-audio-loudness')?.addEventListener('click', () => { audioEngine.lufsHistory = []; });
-  document.getElementById('m-color-wheels')?.addEventListener('click', () => switchWorkspace('color'));
-  document.getElementById('m-color-reset')?.addEventListener('click', () => { const c = getActiveClip(); if (c) resetClipProperties(c); });
+  document.getElementById('m-fx-workspace')?.addEventListener('click', () => switchWorkspace('effects'));
 
+  // AUDIO
+  document.getElementById('m-audio-mixer')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('audio-mixer'));
+  document.getElementById('m-audio-routing')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('audio-routing'));
+  document.getElementById('m-audio-meters')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('audio-meters'));
+  document.getElementById('m-audio-loudness-panel')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('loudness-analysis'));
+  document.getElementById('m-audio-loudness')?.addEventListener('click', () => { audioEngine.lufsHistory = []; });
+  document.getElementById('m-audio-workspace')?.addEventListener('click', () => switchWorkspace('audio'));
+
+  // COLOR
+  document.getElementById('m-color-controls')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('color-controls'));
+  document.getElementById('m-color-wheels')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('color-wheels'));
+  document.getElementById('m-color-luts')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('lut-browser'));
+  document.getElementById('m-color-scopes')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('video-scopes'));
+  document.getElementById('m-color-reset')?.addEventListener('click', () => { const c = getActiveClip(); if (c) resetClipProperties(c); });
+  document.getElementById('m-color-workspace')?.addEventListener('click', () => switchWorkspace('color'));
+
+  // VIEW
+  document.getElementById('m-view-source')?.addEventListener('click', () => switchMonitorTab('source'));
+  document.getElementById('m-view-program')?.addEventListener('click', () => switchMonitorTab('program'));
   document.getElementById('m-view-split')?.addEventListener('click', toggleMonitorSplitView);
   document.getElementById('m-view-safe')?.addEventListener('click', () => document.getElementById('btn-toggle-safe-margins')?.click());
+  document.getElementById('m-view-overlays')?.addEventListener('click', () => document.getElementById('prg-btn-overlays')?.click());
+  document.getElementById('m-view-compare')?.addEventListener('click', () => document.getElementById('prg-btn-compare')?.click());
   document.getElementById('m-view-zoom-in')?.addEventListener('click', () => zoomTimeline(1.3));
   document.getElementById('m-view-zoom-out')?.addEventListener('click', () => zoomTimeline(1 / 1.3));
   document.getElementById('m-view-fullscreen')?.addEventListener('click', () => {
@@ -3633,108 +3942,13 @@ function initMenus() {
     else document.exitFullscreen?.().catch(() => {});
   });
 
-  // Window: Panel Toggles, Layout Presets, Save Workspace, Reset Current Workspace, Reset All Workspaces
-  document.querySelectorAll('[data-panel-toggle]').forEach(entry => {
-    entry.addEventListener('click', () => {
-      const pid = entry.dataset.panelToggle;
-      layoutManager.togglePanelVisibility(pid);
-      if (pid === 'panel-inspector' && layoutManager.isPanelVisible(pid)) renderInspector();
-      if (pid === 'panel-history' && layoutManager.isPanelVisible(pid)) renderHistoryPanel();
-      if (pid === 'panel-markers' && layoutManager.isPanelVisible(pid)) renderMarkersPanel();
-    });
-  });
-
-  document.getElementById('win-preset-default')?.addEventListener('click', () => {
-    store.workspaceState.activeWorkspace = 'edit';
-    layoutManager.openPanel('panel-project');
-    layoutManager.openPanel('monitors-pane');
-    layoutManager.openPanel('panel-inspector');
-    layoutManager.openPanel('panel-timeline');
-    layoutManager.closePanel('panel-history');
-    layoutManager.closePanel('panel-markers');
-    store.sessionState.monitorMode = 'single';
-    applyWorkspaceUI('edit');
-    updateMonitorsLayoutUI();
-    renderAll();
-  });
-
-  document.getElementById('win-preset-compact')?.addEventListener('click', () => {
-    store.workspaceState.activeWorkspace = 'edit';
-    layoutManager.openPanel('panel-project');
-    layoutManager.openPanel('monitors-pane');
-    layoutManager.openPanel('panel-timeline');
-    layoutManager.closePanel('panel-inspector');
-    layoutManager.closePanel('panel-history');
-    layoutManager.closePanel('panel-markers');
-    store.sessionState.monitorMode = 'single';
-    applyWorkspaceUI('edit');
-    updateMonitorsLayoutUI();
-    renderAll();
-  });
-
-  document.getElementById('win-preset-dual')?.addEventListener('click', () => {
-    store.workspaceState.activeWorkspace = 'edit';
-    layoutManager.openPanel('panel-project');
-    layoutManager.openPanel('monitors-pane');
-    layoutManager.openPanel('panel-timeline');
-    layoutManager.closePanel('panel-inspector');
-    layoutManager.closePanel('panel-history');
-    layoutManager.closePanel('panel-markers');
-    store.sessionState.monitorMode = 'split';
-    applyWorkspaceUI('edit');
-    updateMonitorsLayoutUI();
-    renderAll();
-  });
-
-  document.getElementById('win-save-ws')?.addEventListener('click', () => {
-    const name = prompt('Save Workspace Layout As:', `Custom ${store.workspaceState.activeWorkspace.toUpperCase()}`);
-    if (!name) return;
-    const activeLayout = JSON.parse(JSON.stringify(layoutManager.getActiveLayout()));
-    store.workspaceState.customWorkspaces.push({ id: `cws_${Date.now()}`, name, baseWorkspace: store.workspaceState.activeWorkspace, layout: activeLayout });
-    store.flushNow();
-    renderCustomWorkspacesMenu();
-  });
-
-  document.getElementById('win-reset-current-ws')?.addEventListener('click', () => {
-    layoutManager.resetCurrentWorkspace();
-    applyWorkspaceUI(store.workspaceState.activeWorkspace);
-  });
-
-  document.getElementById('win-reset-all-ws')?.addEventListener('click', () => {
-    layoutManager.resetAllWorkspaces();
-    applyWorkspaceUI(store.workspaceState.activeWorkspace);
-  });
-
+  // HELP
+  document.getElementById('m-help-docs')?.addEventListener('click', () => document.getElementById('modal-docs')?.classList.add('active'));
   document.getElementById('m-help-shortcuts')?.addEventListener('click', openShortcutsModal);
   document.getElementById('m-help-diagnostics')?.addEventListener('click', openDiagnosticsModal);
+  document.getElementById('m-help-storage')?.addEventListener('click', () => layoutManager.focusOrOpenPanel('storage-diagnostics'));
   document.getElementById('btn-open-diagnostics')?.addEventListener('click', openDiagnosticsModal);
-  document.getElementById('m-help-about')?.addEventListener('click', () => alert('FRAMEFLOW Studio v8.0.0\nContextual 5-Tab Properties, Linked V+A Editing, Deliver Studio & 4-Layer Persistence'));
-}
-
-function renderCustomWorkspacesMenu() {
-  const container = document.getElementById('custom-workspaces-menu-list');
-  if (!container) return;
-  container.innerHTML = (store.workspaceState.customWorkspaces || []).map(w => `
-    <div class="menu-entry" data-load-ws="${w.id}">
-      <span>★ ${w.name}</span>
-      <span class="menu-shortcut" data-del-ws="${w.id}" title="Delete Workspace">✕</span>
-    </div>
-  `).join('');
-  container.querySelectorAll('[data-load-ws]').forEach(el => el.addEventListener('click', (e) => {
-    if (e.target.dataset.delWs) {
-      e.stopPropagation();
-      store.workspaceState.customWorkspaces = store.workspaceState.customWorkspaces.filter(x => x.id !== e.target.dataset.delWs);
-      store.flushNow(); renderCustomWorkspacesMenu(); return;
-    }
-    const ws = store.workspaceState.customWorkspaces.find(x => x.id === el.dataset.loadWs);
-    if (ws) {
-      store.workspaceState.activeWorkspace = ws.baseWorkspace;
-      store.workspaceState.layouts[ws.baseWorkspace] = JSON.parse(JSON.stringify(ws.layout));
-      store.flushNow();
-      applyWorkspaceUI(ws.baseWorkspace);
-      renderAll();
-    }
-  }));
+  document.getElementById('m-help-about')?.addEventListener('click', () => alert('FRAMEFLOW Studio v9.0.0\nCustomizable Docking & Tab/Stack Panel Architecture, 9 Workspaces, Central Shortcut Registry & 4-Layer Persistence'));
 }
 
 const KEYBOARD_ROWS = [
@@ -3744,6 +3958,12 @@ const KEYBOARD_ROWS = [
   ['Shift', 'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '/', 'Shift'],
   ['Ctrl', 'Alt', 'Space', 'Alt', 'Ctrl'],
 ];
+
+function persistShortcuts() {
+  try {
+    localStorage.setItem('ff_shortcuts_v2', JSON.stringify(shortcutRegistry.getAll().map(s => ({ id: s.id, key: s.key }))));
+  } catch {}
+}
 
 function initModals() {
   document.getElementById('btn-close-shortcuts-modal')?.addEventListener('click', () => {
@@ -3759,28 +3979,68 @@ function initModals() {
   document.getElementById('btn-close-seq-settings')?.addEventListener('click', () => {
     document.getElementById('modal-sequence-settings')?.classList.remove('active');
   });
-  document.getElementById('btn-reset-shortcuts')?.addEventListener('click', () => {
-    activeShortcuts = structuredClone(DEFAULT_SHORTCUTS);
-    localStorage.removeItem('ff_shortcuts');
-    renderVisualKeyboard(); renderShortcutsTable();
+  document.getElementById('btn-close-docs-modal')?.addEventListener('click', () => {
+    document.getElementById('modal-docs')?.classList.remove('active');
   });
+
+  document.getElementById('preset-selector')?.addEventListener('change', (e) => {
+    shortcutRegistry.applyPreset(e.target.value);
+    persistShortcuts();
+    renderVisualKeyboard();
+    renderShortcutsTable(document.getElementById('shortcut-search')?.value || '');
+  });
+
+  document.getElementById('btn-reset-shortcuts')?.addEventListener('click', () => {
+    shortcutRegistry.restoreDefaults();
+    localStorage.removeItem('ff_shortcuts_v2');
+    const banner = document.getElementById('shortcut-conflict-banner');
+    if (banner) banner.style.display = 'none';
+    renderVisualKeyboard();
+    renderShortcutsTable(document.getElementById('shortcut-search')?.value || '');
+  });
+
   document.getElementById('btn-export-shortcuts')?.addEventListener('click', () => {
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([JSON.stringify(activeShortcuts, null, 2)], { type: 'application/json' }));
-    a.download = 'frameflow-shortcuts.json'; a.click();
+    a.href = URL.createObjectURL(new Blob([shortcutRegistry.exportProfile()], { type: 'application/json' }));
+    a.download = 'frameflow-shortcuts.json';
+    a.click();
   });
-  document.getElementById('shortcut-search')?.addEventListener('input', (e) => renderShortcutsTable(e.target.value.toLowerCase()));
+
+  document.getElementById('btn-import-shortcuts')?.addEventListener('click', () => {
+    document.getElementById('import-shortcuts-file-input')?.click();
+  });
+
+  const importScInput = document.getElementById('import-shortcuts-file-input');
+  importScInput?.addEventListener('change', async (e) => {
+    const file = e.target.files?.[0];
+    importScInput.value = '';
+    if (!file) return;
+    const res = shortcutRegistry.importProfile(await file.text());
+    if (!res.ok) {
+      alert('Invalid shortcut profile JSON.');
+      return;
+    }
+    persistShortcuts();
+    renderVisualKeyboard();
+    renderShortcutsTable(document.getElementById('shortcut-search')?.value || '');
+  });
+
+  document.getElementById('shortcut-search')?.addEventListener('input', (e) => renderShortcutsTable(e.target.value));
 }
 
 function openShortcutsModal() {
   document.getElementById('modal-shortcuts')?.classList.add('active');
-  renderVisualKeyboard(); renderShortcutsTable();
+  renderVisualKeyboard();
+  renderShortcutsTable(document.getElementById('shortcut-search')?.value || '');
 }
 
 function renderVisualKeyboard() {
   const container = document.getElementById('virtual-keyboard-container');
   if (!container) return;
-  const map = {}; for (const s of activeShortcuts) map[s.key.toUpperCase()] = s;
+  const map = {};
+  for (const s of shortcutRegistry.getAll()) {
+    if (s.key) map[s.key.toUpperCase()] = s;
+  }
   container.innerHTML = KEYBOARD_ROWS.map(row => `
     <div class="keyboard-row">${row.map(key => {
       const m = map[key.toUpperCase()];
@@ -3793,15 +4053,35 @@ function renderVisualKeyboard() {
 function renderShortcutsTable(filter = '') {
   const tbody = document.getElementById('shortcuts-table-body');
   if (!tbody) return;
-  const rows = activeShortcuts.filter(s => !filter || s.name.toLowerCase().includes(filter) || s.key.toLowerCase().includes(filter));
-  tbody.innerHTML = rows.map(s => `
-    <tr style="border-bottom: 1px solid var(--border-divider);">
-      <td style="padding: 5px 10px; color: #fff;">${s.name}</td>
-      <td style="padding: 5px 10px; color: var(--text-secondary);">${s.category}</td>
-      <td style="padding: 5px 10px;"><button class="action-btn-compact btn-rebind-key" data-sc-id="${s.id}" style="font-family: monospace; color: var(--accent-cyan); border-color: var(--border);">${store.runtimeState.rebindingShortcutId === s.id ? 'Press new key...' : s.key}</button></td>
-    </tr>
-  `).join('');
-  tbody.querySelectorAll('.btn-rebind-key').forEach(b => b.addEventListener('click', () => { store.runtimeState.rebindingShortcutId = b.dataset.scId; renderShortcutsTable(filter); }));
+  const rows = shortcutRegistry.search(filter);
+  tbody.innerHTML = rows.map(s => {
+    const conflicts = s.key ? shortcutRegistry.findConflicts(s.key, s.id) : [];
+    return `
+      <tr style="border-bottom: 1px solid var(--border-divider);">
+        <td style="padding: 5px 10px; color: #fff;">${s.name}</td>
+        <td style="padding: 5px 10px; color: var(--text-secondary);">${s.category}</td>
+        <td style="padding: 5px 10px;">
+          <button class="action-btn-compact btn-rebind-key" data-sc-id="${s.id}" style="font-family: monospace; color: ${conflicts.length ? 'var(--error)' : 'var(--accent-cyan)'}; border-color: ${conflicts.length ? 'var(--error)' : 'var(--border)'};">
+            ${store.runtimeState.rebindingShortcutId === s.id ? 'Press new key...' : (s.key || 'Unassigned')}
+          </button>
+        </td>
+        <td style="padding: 5px 10px;">
+          ${s.key ? `<button class="action-btn-compact btn-clear-key" data-sc-clear="${s.id}" title="Remove shortcut">Clear</button>` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  tbody.querySelectorAll('.btn-rebind-key').forEach(b => b.addEventListener('click', () => {
+    store.runtimeState.rebindingShortcutId = b.dataset.scId;
+    renderShortcutsTable(filter);
+  }));
+  tbody.querySelectorAll('.btn-clear-key').forEach(b => b.addEventListener('click', () => {
+    shortcutRegistry.removeShortcut(b.dataset.scClear);
+    persistShortcuts();
+    renderVisualKeyboard();
+    renderShortcutsTable(filter);
+  }));
 }
 
 function openDiagnosticsModal() {
@@ -3831,13 +4111,13 @@ function openDiagnosticsModal() {
       <div style="background: #10151E; padding: 10px; border: 1px solid var(--border); border-radius: 4px;">
         <div style="color: var(--accent-cyan); font-weight: 700; margin-bottom: 6px;">DECODERS & MEDIA STORE</div>
         <div>Runtime Decoders: <strong>${decCount} (${offlineCount} Offline)</strong></div>
-        <div>IndexedDB Schema: <strong>v2 (4-Layer Store)</strong></div>
+        <div>IndexedDB Schema: <strong>v2 (Dock Tree + 4-Layer Store)</strong></div>
         <div>Export Codecs: <strong>${cod.formats.filter(f => f.supported).length} Supported</strong></div>
       </div>
       <div style="background: #10151E; padding: 10px; border: 1px solid var(--border); border-radius: 4px;">
         <div style="color: var(--warning); font-weight: 700; margin-bottom: 6px;">SESSION & PERFORMANCE</div>
         <div>Measured FPS: <strong>${store.runtimeState.measuredFps} FPS (Drops: ${store.runtimeState.droppedFrames})</strong></div>
-        <div>Active Workspace: <strong>${store.workspaceState.activeWorkspace.toUpperCase()}</strong></div>
+        <div>Active Workspace: <strong>${getWorkspaceMeta(store.workspaceState.activeWorkspace).name}</strong></div>
         <div>Selected Clips: <strong>${store.sessionState.selectedClipIds.length}</strong></div>
       </div>
     </div>
@@ -3845,109 +4125,139 @@ function openDiagnosticsModal() {
   modal.classList.add('active');
 }
 
+function executeShortcutCommand(id) {
+  switch (id) {
+    case 'shortcuts_modal': openShortcutsModal(); return;
+    case 'undo': undo(); return;
+    case 'redo': redo(); return;
+    case 'save_project': store.saveProjectNow({ reason: 'manual-ctrl-s', manual: true }); return;
+    case 'import_media': document.getElementById('video-file-input')?.click(); return;
+    case 'new_bin': createNewBin(); return;
+    case 'export_deliver': switchWorkspace('deliver'); return;
+    case 'link_clips': linkSelectedClipsAction(); return;
+    case 'unlink_clips': unlinkSelectedClipsAction(); return;
+    case 'toggle_linked_sel': document.getElementById('btn-link-toggle')?.click(); return;
+    case 'split_playhead': { const cid = getSelectedClipId(); if (cid) splitClipAction(cid, store.sessionState.playheadTime); return; }
+    case 'cut_clip': cutActiveClipAction(); return;
+    case 'copy_clip': { const c = getActiveClip(); if (c) store.runtimeState.clipboardClip = JSON.parse(JSON.stringify(c)); return; }
+    case 'paste_clip': pasteClipboardClip(); return;
+    case 'delete_clip': deleteActiveClip(); return;
+    case 'clear_io': clearSourceInOut(); return;
+    case 'maximize_panel': layoutManager.toggleMaximizeGroup(); return;
+    case 'play_pause':
+      if (layoutManager.focusedPanelId === 'source-monitor') toggleSourcePlayback();
+      else toggleSequencePlayback();
+      return;
+    case 'shuttle_rev': store.runtimeState.isPlayingSequence = true; store.runtimeState.playbackSpeed = store.runtimeState.playbackSpeed <= 0 ? store.runtimeState.playbackSpeed - 1 : -1; return;
+    case 'shuttle_pause': store.runtimeState.isPlayingSequence = false; store.runtimeState.playbackSpeed = 1; return;
+    case 'shuttle_fwd': store.runtimeState.isPlayingSequence = true; store.runtimeState.playbackSpeed = store.runtimeState.playbackSpeed >= 1 ? store.runtimeState.playbackSpeed + 1 : 1; return;
+    case 'step_prev_frame': stepProgramFrames(-1); return;
+    case 'step_next_frame': stepProgramFrames(1); return;
+    case 'step_prev_5': stepProgramFrames(-5); return;
+    case 'step_next_5': stepProgramFrames(5); return;
+    case 'insert_src': if (store.sessionState.sourceAssetId) insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'insert', useSourceRange: true }); return;
+    case 'overwrite_src': if (store.sessionState.sourceAssetId) insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'overwrite', useSourceRange: true }); return;
+    case 'mark_in':
+      if (layoutManager.focusedPanelId === 'source-monitor' && store.sessionState.sourceAssetId) document.getElementById('src-btn-mark-in')?.click();
+      else { getActiveSequence().inPoint = store.sessionState.playheadTime; renderTimeline(); }
+      return;
+    case 'mark_out':
+      if (layoutManager.focusedPanelId === 'source-monitor' && store.sessionState.sourceAssetId) document.getElementById('src-btn-mark-out')?.click();
+      else { getActiveSequence().outPoint = store.sessionState.playheadTime; renderTimeline(); }
+      return;
+    case 'goto_in': document.getElementById('src-btn-goto-in')?.click(); return;
+    case 'goto_out': document.getElementById('src-btn-goto-out')?.click(); return;
+    case 'tool_select': setTool('select'); return;
+    case 'tool_track_select': setTool('track-select'); return;
+    case 'tool_ripple': setTool('ripple'); return;
+    case 'tool_rolling': setTool('rolling'); return;
+    case 'tool_rate_stretch': setTool('rate-stretch'); return;
+    case 'tool_razor': setTool('razor'); return;
+    case 'tool_slip': setTool('slip'); return;
+    case 'tool_slide': setTool('slide'); return;
+    case 'tool_pen': setTool('pen'); return;
+    case 'tool_hand': setTool('hand'); return;
+    case 'tool_zoom': setTool('zoom'); return;
+    case 'tool_text': setTool('text'); addTitleOverlayClip(); return;
+    case 'snap_toggle': toggleSnapping(); return;
+    case 'add_marker': addMarkerAtPlayhead(); return;
+    case 'fit_sequence': fitTimelineToSequence(); return;
+    case 'zoom_in': zoomTimeline(1.3); return;
+    case 'zoom_out': zoomTimeline(1 / 1.3); return;
+    // Workspace shortcuts
+    case 'ws_edit': switchWorkspace('edit'); return;
+    case 'ws_effects': switchWorkspace('effects'); return;
+    case 'ws_color': switchWorkspace('color'); return;
+    case 'ws_audio': switchWorkspace('audio'); return;
+    case 'ws_graphics': switchWorkspace('graphics'); return;
+    case 'ws_deliver': switchWorkspace('deliver'); return;
+    case 'ws_media': switchWorkspace('media'); return;
+    case 'ws_minimal': switchWorkspace('minimal'); return;
+    case 'ws_dual': switchWorkspace('dual-viewer'); return;
+    // Panel visibility / focus shortcuts
+    case 'panel_project': layoutManager.focusOrOpenPanel('project'); return;
+    case 'panel_source': layoutManager.focusOrOpenPanel('source-monitor'); return;
+    case 'panel_timeline': layoutManager.focusOrOpenPanel('timeline'); return;
+    case 'panel_program': layoutManager.focusOrOpenPanel('program-monitor'); return;
+    case 'panel_fx_controls': layoutManager.focusOrOpenPanel('effect-controls'); return;
+    case 'panel_audio_mixer': layoutManager.focusOrOpenPanel('audio-mixer'); return;
+    case 'panel_effects': layoutManager.focusOrOpenPanel('effects-library'); return;
+    case 'panel_properties': layoutManager.togglePanelVisibility('properties'); return;
+  }
+}
+
 function initKeyboardEngine() {
   window.addEventListener('keydown', (e) => {
     if (store.runtimeState.rebindingShortcutId) {
       e.preventDefault();
-      const combo = `${e.ctrlKey ? 'Ctrl+' : ''}${e.altKey ? 'Alt+' : ''}${e.shiftKey ? 'Shift+' : ''}${e.key.length === 1 ? e.key.toUpperCase() : e.key}`;
-      const conflict = activeShortcuts.find(s => s.id !== store.runtimeState.rebindingShortcutId && s.key.toUpperCase() === combo.toUpperCase());
+      if (e.key === 'Escape') {
+        store.runtimeState.rebindingShortcutId = null;
+        renderShortcutsTable(document.getElementById('shortcut-search')?.value || '');
+        return;
+      }
+      const combo = eventToKeyCombo(e);
+      if (!combo) return;
+      const targetId = store.runtimeState.rebindingShortcutId;
+      const res = shortcutRegistry.assignShortcut(targetId, combo, { resolveConflicts: false });
       const banner = document.getElementById('shortcut-conflict-banner');
-      if (conflict && banner) { banner.style.display = 'block'; banner.textContent = `Conflict: "${combo}" was assigned to "${conflict.name}".`; }
-      else if (banner) banner.style.display = 'none';
-      const target = activeShortcuts.find(s => s.id === store.runtimeState.rebindingShortcutId);
-      if (target) target.key = combo;
+      if (res.conflicts.length > 0 && banner) {
+        banner.style.display = 'flex';
+        banner.innerHTML = `
+          <span>Conflict: <strong>${combo}</strong> is also assigned to "${res.conflicts.map(c => c.name).join(', ')}".</span>
+          <button class="action-btn-compact danger" id="btn-resolve-sc-conflict">Resolve (Unbind Other)</button>
+        `;
+        document.getElementById('btn-resolve-sc-conflict')?.addEventListener('click', () => {
+          shortcutRegistry.resolveConflictFor(targetId);
+          persistShortcuts();
+          banner.style.display = 'none';
+          renderVisualKeyboard();
+          renderShortcutsTable(document.getElementById('shortcut-search')?.value || '');
+        });
+      } else if (banner) {
+        banner.style.display = 'none';
+      }
       store.runtimeState.rebindingShortcutId = null;
-      localStorage.setItem('ff_shortcuts', JSON.stringify(activeShortcuts));
-      renderVisualKeyboard(); renderShortcutsTable(); return;
+      persistShortcuts();
+      renderVisualKeyboard();
+      renderShortcutsTable(document.getElementById('shortcut-search')?.value || '');
+      return;
     }
 
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
-
-    const code = e.code;
-    const isCtrl = e.ctrlKey || e.metaKey;
-
-    if (isCtrl && e.altKey && code === 'KeyK') { e.preventDefault(); openShortcutsModal(); return; }
-    if (isCtrl && code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
-    if (isCtrl && code === 'KeyY') { e.preventDefault(); redo(); return; }
-    if (isCtrl && code === 'KeyS') { e.preventDefault(); store.flushNow(); return; }
-    if (isCtrl && code === 'KeyI') { e.preventDefault(); document.getElementById('video-file-input')?.click(); return; }
-    if (isCtrl && code === 'KeyM') { e.preventDefault(); switchWorkspace('deliver'); return; }
-    if (isCtrl && code === 'KeyL') {
+    // Backspace fallback for delete when not in an editable field
+    if (e.code === 'Backspace' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName) && !e.target?.isContentEditable) {
+      deleteActiveClip();
+      return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.code === 'KeyY' && !['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target?.tagName)) {
       e.preventDefault();
-      if (e.shiftKey) unlinkSelectedClipsAction();
-      else linkSelectedClipsAction();
-      return;
-    }
-    if (!isCtrl && e.shiftKey && code === 'KeyL') {
-      e.preventDefault();
-      document.getElementById('btn-link-toggle')?.click();
-      return;
-    }
-    if (isCtrl && code === 'KeyK') { e.preventDefault(); const id = getSelectedClipId(); if (id) splitClipAction(id, store.sessionState.playheadTime); return; }
-    if (isCtrl && code === 'KeyC') { const c = getActiveClip(); if (c) store.runtimeState.clipboardClip = JSON.parse(JSON.stringify(c)); return; }
-    if (isCtrl && code === 'KeyV') { pasteClipboardClip(); return; }
-    if (e.altKey && code === 'KeyX') { e.preventDefault(); clearSourceInOut(); return; }
-
-    if (code === 'Backquote') {
-      e.preventDefault();
-      const focused = document.querySelector('.panel.focused') || document.getElementById('panel-timeline');
-      if (focused) toggleMaximizePanel(focused);
+      redo();
       return;
     }
 
-    if (code === 'Space') {
-      e.preventDefault();
-      if (store.sessionState.monitorMode === 'single' && store.sessionState.activeMonitorTab === 'source') toggleSourcePlayback();
-      else toggleSequencePlayback();
-      return;
-    }
-    if (code === 'KeyJ') { store.runtimeState.isPlayingSequence = true; store.runtimeState.playbackSpeed = store.runtimeState.playbackSpeed <= 0 ? store.runtimeState.playbackSpeed - 1 : -1; return; }
-    if (code === 'KeyK') { store.runtimeState.isPlayingSequence = false; store.runtimeState.playbackSpeed = 1; return; }
-    if (code === 'KeyL') { store.runtimeState.isPlayingSequence = true; store.runtimeState.playbackSpeed = store.runtimeState.playbackSpeed >= 1 ? store.runtimeState.playbackSpeed + 1 : 1; return; }
-    if (code === 'ArrowLeft')  { e.preventDefault(); stepProgramFrames(e.shiftKey ? -5 : -1); return; }
-    if (code === 'ArrowRight') { e.preventDefault(); stepProgramFrames(e.shiftKey ? 5 : 1); return; }
-
-    if (code === 'Comma' && store.sessionState.sourceAssetId)  { insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'insert', useSourceRange: true }); return; }
-    if (code === 'Period' && store.sessionState.sourceAssetId) { insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'overwrite', useSourceRange: true }); return; }
-
-    if (code === 'KeyI') {
-      if (store.sessionState.activeMonitorTab === 'source' && store.sessionState.sourceAssetId) {
-        if (e.shiftKey) document.getElementById('src-btn-goto-in')?.click();
-        else document.getElementById('src-btn-mark-in')?.click();
-      } else {
-        getActiveSequence().inPoint = store.sessionState.playheadTime; renderTimeline();
-      }
-      return;
-    }
-    if (code === 'KeyO') {
-      if (store.sessionState.activeMonitorTab === 'source' && store.sessionState.sourceAssetId) {
-        if (e.shiftKey) document.getElementById('src-btn-goto-out')?.click();
-        else document.getElementById('src-btn-mark-out')?.click();
-      } else {
-        getActiveSequence().outPoint = store.sessionState.playheadTime; renderTimeline();
-      }
-      return;
-    }
-
-    if (code === 'KeyV') setTool('select');
-    else if (code === 'KeyA') setTool('track-select');
-    else if (code === 'KeyB') setTool('ripple');
-    else if (code === 'KeyN') setTool('rolling');
-    else if (code === 'KeyR') setTool('rate-stretch');
-    else if (code === 'KeyC') setTool('razor');
-    else if (code === 'KeyY') setTool('slip');
-    else if (code === 'KeyU') setTool('slide');
-    else if (code === 'KeyP') setTool('pen');
-    else if (code === 'KeyH') setTool('hand');
-    else if (code === 'KeyZ') setTool('zoom');
-    else if (code === 'KeyT') { setTool('text'); addTitleOverlayClip(); }
-
-    if (code === 'KeyS') toggleSnapping();
-    if (code === 'KeyM') addMarkerAtPlayhead();
-    if (code === 'Delete' || code === 'Backspace') deleteActiveClip();
-    if (code === 'Backslash') fitTimelineToSequence();
-    if (code === 'Equal') zoomTimeline(1.3);
-    if (code === 'Minus') zoomTimeline(1 / 1.3);
+    const matched = shortcutRegistry.matchEvent(e);
+    if (!matched) return;
+    e.preventDefault();
+    executeShortcutCommand(matched.id);
   });
 }
 
@@ -3959,11 +4269,14 @@ function renderAll() {
   renderTimeline();
   renderProgramMonitor();
   renderInspector();
+  renderEffectsLibrary();
+  renderColorClipsGallery();
+  renderAudioConsole();
+  renderDeliverSettings();
+  renderDeliverQueue();
   renderHistoryPanel();
   renderMarkersPanel();
-  if (store.workspaceState.activeWorkspace === 'color') renderColorClipsGallery();
-  if (store.workspaceState.activeWorkspace === 'audio') renderAudioConsole();
-  if (store.workspaceState.activeWorkspace === 'deliver') { renderDeliverSettings(); renderDeliverQueue(); }
+  renderAllSpecialistPanels(getPanelViewContext());
   const titleEl = document.getElementById('project-title-disp');
   if (titleEl) titleEl.textContent = store.projectState.title;
 }
