@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>FRAMEFLOW — Professional Browser-Based Video Editor</title>
+  <title>FRAMEFLOW Studio — Professional Browser-Based Video Editor</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -13,38 +14,36 @@
     <div class="top-bar">
       <div class="brand-section">
         <div class="brand-logo">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-          </svg>
+          <span class="icon" style="font-size: 20px; color: var(--accent-blue);">movie_edit</span>
           FRAMEFLOW
         </div>
-        <span class="brand-badge">Studio</span>
+        <span class="brand-badge">Studio M3</span>
         <span style="font-size: 11px; color: var(--text-muted)">Project:</span>
         <span id="project-title-disp" style="font-size: 11px; font-weight: 600; color: #fff;">Untitled Project</span>
         <span class="save-status-indicator saved" id="save-status-badge">● Saved</span>
       </div>
 
-      <!-- Workspace Switcher -->
-      <div class="workspace-switcher">
-        <button class="ws-tab" data-ws="media">Media</button>
-        <button class="ws-tab active" data-ws="edit">Edit</button>
-        <button class="ws-tab" data-ws="motion">Motion</button>
-        <button class="ws-tab" data-ws="color">Color</button>
-        <button class="ws-tab" data-ws="audio">Audio</button>
-        <button class="ws-tab" data-ws="deliver">Deliver</button>
+      <!-- 6 Specialist Workspaces Switcher -->
+      <div class="workspace-switcher" id="workspace-bar">
+        <button class="ws-tab" data-ws="media"><span class="icon icon-sm">perm_media</span> Media</button>
+        <button class="ws-tab active" data-ws="edit"><span class="icon icon-sm">dashboard</span> Edit</button>
+        <button class="ws-tab" data-ws="motion"><span class="icon icon-sm">motion_mode</span> Motion</button>
+        <button class="ws-tab" data-ws="color"><span class="icon icon-sm">palette</span> Color</button>
+        <button class="ws-tab" data-ws="audio"><span class="icon icon-sm">graphic_eq</span> Audio</button>
+        <button class="ws-tab" data-ws="deliver"><span class="icon icon-sm">ios_share</span> Deliver</button>
       </div>
 
       <div class="header-actions">
         <button class="action-btn" id="btn-undo" title="Undo (Ctrl+Z)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"></path></svg>
+          <span class="icon icon-sm">undo</span>
           Undo
         </button>
         <button class="action-btn" id="btn-redo" title="Redo (Ctrl+Shift+Z)">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 7v6h-6"></path><path d="M3 17a9 9 0 0 1 9-9 9 9 0 0 1 6 2.3L21 13"></path></svg>
+          <span class="icon icon-sm">redo</span>
           Redo
         </button>
-        <button class="action-btn primary" id="btn-export-modal">
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+        <button class="action-btn primary" id="btn-export-modal" title="Export Sequence (Ctrl+M)">
+          <span class="icon icon-sm">ios_share</span>
           Export
         </button>
       </div>
@@ -72,6 +71,8 @@
           <div class="menu-sep"></div>
           <div class="menu-entry" id="m-edit-delete"><span>Delete Clip</span><span class="menu-shortcut">Del</span></div>
           <div class="menu-entry" id="m-edit-split"><span>Split Clip at Playhead</span><span class="menu-shortcut">Ctrl+K</span></div>
+          <div class="menu-sep"></div>
+          <div class="menu-entry" id="m-edit-shortcuts"><span>Keyboard Shortcuts...</span><span class="menu-shortcut">Ctrl+Alt+K</span></div>
         </div>
       </div>
       <!-- Project -->
@@ -157,7 +158,7 @@
       <div class="menu-item">
         <div class="menu-label">Help</div>
         <div class="menu-dropdown">
-          <div class="menu-entry" id="m-help-shortcuts"><span>Keyboard Shortcuts Map</span></div>
+          <div class="menu-entry" id="m-help-shortcuts"><span>Keyboard Shortcuts Map</span><span class="menu-shortcut">Ctrl+Alt+K</span></div>
           <div class="menu-entry" id="m-help-about"><span>About FRAMEFLOW Studio</span></div>
         </div>
       </div>
@@ -174,17 +175,26 @@
     <div class="col-left panel" id="panel-project">
       <div class="panel-header">
         <div class="panel-tabs">
-          <button class="panel-tab active" id="tab-project-btn">📁 Project Assets</button>
+          <button class="panel-tab active" id="tab-project-btn">
+            <span class="icon icon-sm">folder_open</span> Project Assets
+          </button>
         </div>
         <div class="panel-actions">
-          <button class="panel-action-btn" id="btn-add-bin" title="New Bin">+📁</button>
-          <button class="panel-action-btn" id="btn-import-media" title="Import Files">+📥</button>
-          <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">&boxbox;</button>
+          <button class="panel-action-btn" id="btn-add-bin" title="New Bin (Ctrl+B)">
+            <span class="icon icon-sm">create_new_folder</span>
+          </button>
+          <button class="panel-action-btn" id="btn-import-media" title="Import Files (Ctrl+I)">
+            <span class="icon icon-sm">file_upload</span>
+          </button>
+          <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">
+            <span class="icon icon-sm">fullscreen</span>
+          </button>
         </div>
       </div>
       <div class="panel-body" style="padding: 8px; gap: 8px;">
         <!-- Real Drag-Drop Zone -->
         <div id="media-dropzone" style="border: 2px dashed var(--border-subtle); border-radius: 6px; padding: 12px 6px; text-align: center; cursor: pointer; background: var(--bg-input);">
+          <span class="icon" style="font-size: 24px; color: var(--accent-blue); margin-bottom: 4px;">cloud_upload</span>
           <div style="font-size: 11px; font-weight: 600; color: var(--accent-blue);">+ Import Media</div>
           <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Drop files or click to browse</div>
         </div>
@@ -194,8 +204,9 @@
           <!-- Injected dynamically by app.js -->
         </div>
 
-        <div style="font-size: 10px; color: var(--text-muted); border-top: 1px solid var(--border-divider); padding-top: 4px;">
-          Double-click asset to load into Source Monitor. Drag to Timeline.
+        <div style="font-size: 10px; color: var(--text-muted); border-top: 1px solid var(--border-divider); padding-top: 4px; display: flex; align-items: center; gap: 4px;">
+          <span class="icon icon-sm">info</span>
+          Double-click to load in Source Monitor. Drag to Timeline.
         </div>
       </div>
     </div>
@@ -212,10 +223,14 @@
         <!-- Source Monitor -->
         <div class="monitor-wrapper" id="panel-source">
           <div class="panel-header">
-            <span>SOURCE MONITOR</span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span class="icon icon-sm">video_file</span> SOURCE MONITOR
+            </span>
             <div class="panel-actions">
               <span class="timecode-readout" id="source-timecode">00:00:00:00</span>
-              <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">&boxbox;</button>
+              <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">
+                <span class="icon icon-sm">fullscreen</span>
+              </button>
             </div>
           </div>
           <div class="monitor-canvas-container">
@@ -226,15 +241,21 @@
           </div>
           <div class="monitor-controls">
             <div style="display: flex; gap: 4px;">
-              <button class="action-btn" id="src-btn-mark-in" title="Mark In (I)" style="padding: 2px 6px;">{ In</button>
-              <button class="action-btn" id="src-btn-mark-out" title="Mark Out (O)" style="padding: 2px 6px;">} Out</button>
+              <button class="action-btn" id="src-btn-mark-in" title="Mark In (I)" style="padding: 2px 6px;">
+                <span class="icon icon-sm">first_page</span> { In
+              </button>
+              <button class="action-btn" id="src-btn-mark-out" title="Mark Out (O)" style="padding: 2px 6px;">
+                <span class="icon icon-sm">last_page</span> } Out
+              </button>
             </div>
             <div style="display: flex; gap: 4px;">
-              <button class="action-btn" id="src-btn-play" style="padding: 2px 10px;">&#9658;</button>
+              <button class="action-btn" id="src-btn-play" style="padding: 2px 10px;" title="Play / Pause">
+                <span class="icon icon-sm" id="src-play-icon">play_arrow</span>
+              </button>
             </div>
             <div>
               <button class="action-btn primary" id="src-btn-insert" title="Insert to Timeline (,)" style="padding: 2px 8px;">
-                Insert &rarr;
+                <span class="icon icon-sm">input</span> Insert &rarr;
               </button>
             </div>
           </div>
@@ -246,10 +267,14 @@
         <!-- Program Monitor (Real Sequence Render Canvas) -->
         <div class="monitor-wrapper" id="panel-program">
           <div class="panel-header">
-            <span>PROGRAM MONITOR (SEQUENCE COMPOSITOR)</span>
+            <span style="display: flex; align-items: center; gap: 6px;">
+              <span class="icon icon-sm">live_tv</span> PROGRAM MONITOR (COMPOSITOR)
+            </span>
             <div class="panel-actions">
               <span class="timecode-readout" id="program-timecode">00:00:00:00</span>
-              <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">&boxbox;</button>
+              <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">
+                <span class="icon icon-sm">fullscreen</span>
+              </button>
             </div>
           </div>
           <div class="monitor-canvas-container">
@@ -257,15 +282,27 @@
           </div>
           <div class="monitor-controls">
             <div style="display: flex; gap: 4px;">
-              <button class="action-btn" id="prg-btn-prev" title="Step Back 1s" style="padding: 2px 6px;">&#9664;&#9664;</button>
-              <button class="action-btn primary" id="prg-btn-play" title="Play / Pause (Space)" style="padding: 2px 12px;">&#9658;</button>
-              <button class="action-btn" id="prg-btn-next" title="Step Forward 1s" style="padding: 2px 6px;">&#9654;&#9654;</button>
+              <button class="action-btn" id="prg-btn-prev" title="Step Back 1s (Shift+Left)" style="padding: 2px 6px;">
+                <span class="icon icon-sm">replay_10</span>
+              </button>
+              <button class="action-btn" id="prg-btn-step-prev" title="Step 1 Frame (Left Arrow)" style="padding: 2px 6px;">
+                <span class="icon icon-sm">skip_previous</span>
+              </button>
+              <button class="action-btn primary" id="prg-btn-play" title="Play / Pause (Space)" style="padding: 2px 12px;">
+                <span class="icon icon-sm" id="prg-play-icon">play_arrow</span>
+              </button>
+              <button class="action-btn" id="prg-btn-step-next" title="Step 1 Frame (Right Arrow)" style="padding: 2px 6px;">
+                <span class="icon icon-sm">skip_next</span>
+              </button>
+              <button class="action-btn" id="prg-btn-next" title="Step Forward 1s (Shift+Right)" style="padding: 2px 6px;">
+                <span class="icon icon-sm">forward_10</span>
+              </button>
             </div>
             <div style="font-size: 11px; color: var(--accent-cyan);" id="sequence-name-disp">
               Master Sequence (1080p 24fps)
             </div>
-            <div style="font-size: 11px; color: var(--accent-emerald);">
-              ● WebGPU Compositor
+            <div style="font-size: 11px; color: var(--accent-emerald); display: flex; align-items: center; gap: 4px;">
+              <span class="icon icon-sm">bolt</span> WebGPU Compositor
             </div>
           </div>
         </div>
@@ -275,35 +312,75 @@
       <!-- Splitter Center (Vertical: Monitors <-> Timeline) -->
       <div class="splitter-v" id="splitter-center-v"></div>
 
-      <!-- Timeline Pane -->
+      <!-- Timeline Pane: Four-Zone Professional Architecture -->
       <div class="timeline-pane" id="panel-timeline">
+        
+        <!-- ZONE A: Timeline Toolbar & Action Strip -->
         <div class="timeline-toolbar">
-          <button class="tool-btn active" id="tool-select" title="Selection Tool (V)">V</button>
-          <button class="tool-btn" id="tool-razor" title="Razor Cut at Playhead (C / Ctrl+K)">Razor (C)</button>
-          <div style="width: 1px; height: 16px; background: var(--border-divider);"></div>
-          <button class="tool-btn" id="btn-snap-toggle" title="Toggle Snapping (S)" style="color: var(--accent-blue);">🧲 Snap</button>
-          <button class="tool-btn" id="btn-time-zoom-out" title="Zoom Out (-)">-</button>
-          <button class="tool-btn" id="btn-time-zoom-in" title="Zoom In (+)">+</button>
-          <button class="tool-btn" id="btn-time-fit" title="Fit to View (\)">Fit (\)</button>
-          <div style="width: 1px; height: 16px; background: var(--border-divider);"></div>
-          <button class="action-btn" id="btn-add-v-track" style="padding: 2px 6px; font-size: 10px;">+ Video Track</button>
-          <button class="action-btn" id="btn-add-a-track" style="padding: 2px 6px; font-size: 10px;">+ Audio Track</button>
+          <button class="tool-btn active" id="tool-select" data-tooltip="Selection Tool (V)"><span class="icon">near_me</span></button>
+          <button class="tool-btn" id="tool-track-select" data-tooltip="Track Select Forward (A)"><span class="icon">double_arrow</span></button>
+          <button class="tool-btn" id="tool-ripple" data-tooltip="Ripple Edit Tool (B)"><span class="icon">compress</span></button>
+          <button class="tool-btn" id="tool-rolling" data-tooltip="Rolling Edit Tool (N)"><span class="icon">swap_horiz</span></button>
+          <button class="tool-btn" id="tool-rate-stretch" data-tooltip="Rate Stretch Tool (R)"><span class="icon">fast_forward</span></button>
+          <button class="tool-btn" id="tool-razor" data-tooltip="Razor Cut Tool (C / Ctrl+K)"><span class="icon">content_cut</span></button>
+          <button class="tool-btn" id="tool-slip" data-tooltip="Slip Tool (Y)"><span class="icon">pan_tool_alt</span></button>
+          <button class="tool-btn" id="tool-slide" data-tooltip="Slide Tool (U)"><span class="icon">compare_arrows</span></button>
+          <button class="tool-btn" id="tool-pen" data-tooltip="Pen Tool (P)"><span class="icon">edit</span></button>
+          <button class="tool-btn" id="tool-hand" data-tooltip="Hand Tool (H)"><span class="icon">pan_tool</span></button>
+          <button class="tool-btn" id="tool-zoom" data-tooltip="Zoom Tool (Z)"><span class="icon">zoom_in</span></button>
+          <button class="tool-btn" id="tool-text" data-tooltip="Type Tool (T)"><span class="icon">title</span></button>
+
+          <div class="toolbar-sep"></div>
+
+          <button class="tool-btn active" id="btn-snap-toggle" data-tooltip="Toggle Snapping (S)">
+            <span class="icon icon-sm">magnet</span> Snap
+          </button>
+          <button class="tool-btn active" id="btn-link-toggle" data-tooltip="Linked Selection (Ctrl+L)">
+            <span class="icon icon-sm">link</span> Link
+          </button>
+
+          <div class="toolbar-sep"></div>
+
+          <button class="tool-btn" id="btn-time-zoom-out" data-tooltip="Zoom Out (-)">
+            <span class="icon icon-sm">zoom_out</span>
+          </button>
+          <button class="tool-btn" id="btn-time-zoom-in" data-tooltip="Zoom In (+)">
+            <span class="icon icon-sm">zoom_in</span>
+          </button>
+          <button class="tool-btn" id="btn-time-fit" data-tooltip="Fit to Sequence (\)">
+            <span class="icon icon-sm">fit_screen</span>
+          </button>
+
+          <div class="toolbar-sep"></div>
+
+          <button class="action-btn" id="btn-add-v-track" style="padding: 2px 6px; font-size: 10px;">
+            <span class="icon icon-sm">add</span> Video
+          </button>
+          <button class="action-btn" id="btn-add-a-track" style="padding: 2px 6px; font-size: 10px;">
+            <span class="icon icon-sm">add</span> Audio
+          </button>
+
           <div style="flex: 1;"></div>
           <div class="panel-actions">
-            <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">&boxbox;</button>
+            <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">
+              <span class="icon icon-sm">fullscreen</span>
+            </button>
           </div>
         </div>
 
         <div class="timeline-content">
-          <!-- Track Headers Column -->
+          <!-- ZONE B: Track Headers Column -->
           <div class="timeline-headers-col" id="timeline-headers-container">
-            <div class="timeline-ruler-corner">TRACKS</div>
+            <div class="timeline-ruler-corner">
+              <span>TRACKS</span>
+              <span class="icon icon-sm" style="color: var(--text-muted)">layers</span>
+            </div>
             <!-- Injected dynamically by app.js -->
           </div>
 
-          <!-- Timeline Scrollable Tracks Area -->
+          <!-- ZONE C & D: Timeline Scrollable Tracks Area -->
           <div class="timeline-tracks-scroll" id="timeline-scroll-area">
-            <!-- Time Ruler -->
+            <!-- ZONE C: Time Ruler -->
             <div class="timeline-ruler" id="timeline-ruler-bar">
               <!-- Ruler ticks injected dynamically -->
             </div>
@@ -313,11 +390,40 @@
               <div class="timeline-playhead-head"></div>
             </div>
 
-            <!-- Track Lanes -->
+            <!-- ZONE D: Track Lanes & Clips -->
             <div id="timeline-lanes-container" style="position: relative;">
               <!-- Injected dynamically by app.js -->
             </div>
           </div>
+
+          <!-- Master Audio VU Meter (Beside Timeline) -->
+          <div class="timeline-vu-meter" id="timeline-vu-meter">
+            <div class="vu-title">MASTER</div>
+            <div class="vu-meter-body">
+              <div class="vu-channel">
+                <div class="vu-fill" id="vu-bar-l"></div>
+                <div class="vu-scale">
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                </div>
+              </div>
+              <div class="vu-channel">
+                <div class="vu-fill" id="vu-bar-r"></div>
+                <div class="vu-scale">
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                  <div class="vu-tick"></div>
+                </div>
+              </div>
+            </div>
+            <div class="vu-db-readout" id="vu-db-text">-∞</div>
+          </div>
+
         </div>
       </div>
 
@@ -329,13 +435,17 @@
     <!-- RIGHT COLUMN: Contextual Inspector -->
     <div class="col-right panel" id="panel-inspector">
       <div class="panel-header">
-        <span>CONTEXTUAL INSPECTOR</span>
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <span class="icon icon-sm">tune</span> CONTEXTUAL INSPECTOR
+        </span>
         <div class="panel-actions">
-          <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">&boxbox;</button>
+          <button class="panel-action-btn btn-maximize-panel" title="Maximize (~)">
+            <span class="icon icon-sm">fullscreen</span>
+          </button>
         </div>
       </div>
       <div class="panel-body" style="padding: 10px;" id="inspector-content">
-        <!-- Injected dynamically based on active selection -->
+        <!-- Injected dynamically based on active selection and workspace -->
       </div>
     </div>
 
@@ -355,15 +465,151 @@
     <div style="display: flex; align-items: center; gap: 12px;">
       <span id="status-clip-info" style="color: var(--accent-cyan);">No clip selected</span>
       <span>Storage: <strong>IndexedDB Local Cache</strong></span>
-      <span style="color: var(--accent-emerald);">🔒 100% Local-First Engine</span>
+      <span style="color: var(--accent-emerald); display: flex; align-items: center; gap: 4px;">
+        <span class="icon icon-sm">lock</span> Local-First Engine
+      </span>
     </div>
   </footer>
 
   <!-- Panel Context Menu -->
   <div class="context-menu" id="panel-context-menu">
-    <div class="context-menu-item" id="cm-maximize">Maximize Panel</div>
-    <div class="context-menu-item" id="cm-reset">Reset Panel Size</div>
-    <div class="context-menu-item" id="cm-close">Close Panel</div>
+    <div class="context-menu-item" id="cm-maximize">
+      <span>Maximize Panel</span><span class="menu-shortcut">~</span>
+    </div>
+    <div class="context-menu-item" id="cm-reset">
+      <span>Reset Panel Size</span>
+    </div>
+    <div class="context-menu-sep"></div>
+    <div class="context-menu-item" id="cm-close">
+      <span>Close Panel</span>
+    </div>
+  </div>
+
+  <!-- 4. Visual Keyboard Shortcut Customizer Modal -->
+  <div class="modal-overlay" id="modal-shortcuts">
+    <div class="modal-card" style="width: 880px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="icon" style="color: var(--accent-blue);">keyboard</span>
+          <span>Keyboard Shortcuts Customizer</span>
+        </div>
+        <button class="panel-action-btn" id="btn-close-shortcuts-modal" style="font-size: 16px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 11px; color: var(--text-secondary);">Shortcut Preset:</span>
+            <select id="preset-selector" style="background: var(--bg-input); color: #fff; border: 1px solid var(--border-subtle); padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+              <option value="frameflow">FRAMEFLOW Default (Optimized)</option>
+              <option value="premiere">Adobe Premiere Pro</option>
+              <option value="resolve">DaVinci Resolve</option>
+              <option value="fcp">Final Cut Pro</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <input type="text" id="shortcut-search" placeholder="Search commands or keys..." style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: #fff; padding: 4px 8px; border-radius: 4px; font-size: 11px; width: 220px;">
+          </div>
+        </div>
+
+        <!-- Virtual Keyboard Layout -->
+        <div id="virtual-keyboard-container" style="background: #0f131a; padding: 12px; border-radius: 6px; border: 1px solid var(--border-subtle); display: flex; flex-direction: column; gap: 6px;">
+          <!-- Dynamically populated QWERTY keyboard rows -->
+        </div>
+
+        <!-- Legend -->
+        <div style="display: flex; gap: 14px; font-size: 10px; align-items: center; justify-content: center; padding: 4px 0; border-top: 1px solid var(--border-divider);">
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: rgba(14, 165, 233, 0.5); border: 1px solid #0284c7; border-radius: 2px;"></span> Transport (J/K/L/Space)</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: rgba(16, 185, 129, 0.5); border: 1px solid #059669; border-radius: 2px;"></span> Tools (V/C/A/B/R/T)</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: rgba(245, 158, 11, 0.5); border: 1px solid #d97706; border-radius: 2px;"></span> Editing (Del/Cut/Trim)</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: rgba(139, 92, 246, 0.5); border: 1px solid #7c3aed; border-radius: 2px;"></span> Navigation & Zoom</span>
+        </div>
+
+        <!-- Commands Table -->
+        <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: 4px;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 11px; text-align: left;" id="shortcuts-table">
+            <thead>
+              <tr style="background: var(--bg-panel-header); color: var(--text-secondary); border-bottom: 1px solid var(--border-subtle);">
+                <th style="padding: 6px 10px;">Command</th>
+                <th style="padding: 6px 10px;">Category</th>
+                <th style="padding: 6px 10px;">Shortcut</th>
+              </tr>
+            </thead>
+            <tbody id="shortcuts-table-body">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- 5. Export Sequence Modal -->
+  <div class="modal-overlay" id="modal-export">
+    <div class="modal-card" style="width: 600px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="icon" style="color: var(--accent-emerald);">ios_share</span>
+          <span>Export Sequence — Master Render Queue</span>
+        </div>
+        <button class="panel-action-btn" id="btn-close-export-modal" style="font-size: 16px;">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="inspector-group">
+          <div class="inspector-group-title">Export Preset</div>
+          <div class="field-row">
+            <select id="export-preset-select" style="background: var(--bg-input); color: #fff; border: 1px solid var(--border-subtle); padding: 6px; border-radius: 4px; font-size: 12px; width: 100%;">
+              <option value="h264_1080p">H.264 Master 1080p (Adaptive High Bitrate) [Recommended]</option>
+              <option value="h264_4k">H.264 Master 4K UHD (High Bitrate 45 Mbps)</option>
+              <option value="prores_422">Apple ProRes 422 HQ (Broadcast Master)</option>
+              <option value="youtube_4k">YouTube 4K UHD (60fps Optimized)</option>
+              <option value="tiktok_vertical">TikTok / Instagram Reels (1080x1920 9:16)</option>
+              <option value="webm_av1">WebM AV1 High Efficiency (Web Optimized)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="inspector-group">
+          <div class="inspector-group-title">Render Specifications</div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
+            <div class="field-row">
+              <div class="field-header"><span>Resolution</span></div>
+              <input type="text" id="export-res" value="1920 x 1080" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: #fff; padding: 4px; border-radius: 3px;" readonly>
+            </div>
+            <div class="field-row">
+              <div class="field-header"><span>Frame Rate</span></div>
+              <input type="text" id="export-fps" value="24.00 fps" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: #fff; padding: 4px; border-radius: 3px;" readonly>
+            </div>
+            <div class="field-row">
+              <div class="field-header"><span>Target Bitrate</span></div>
+              <input type="text" id="export-bitrate" value="20.0 Mbps (VBR 2-Pass)" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: #fff; padding: 4px; border-radius: 3px;" readonly>
+            </div>
+            <div class="field-row">
+              <div class="field-header"><span>Audio Codec</span></div>
+              <input type="text" id="export-audio" value="AAC Stereo 320 kbps" style="background: var(--bg-input); border: 1px solid var(--border-subtle); color: #fff; padding: 4px; border-radius: 3px;" readonly>
+            </div>
+          </div>
+        </div>
+
+        <!-- Render Progress -->
+        <div id="export-progress-area" style="display: none; flex-direction: column; gap: 6px;">
+          <div style="display: flex; justify-content: space-between; font-size: 11px;">
+            <span id="export-status-label" style="color: var(--accent-blue);">Encoding frames via WebCodecs & FFmpeg...</span>
+            <span id="export-percent-label" style="font-weight: 600;">0%</span>
+          </div>
+          <div style="width: 100%; height: 8px; background: #1a202c; border-radius: 4px; overflow: hidden;">
+            <div id="export-progress-fill" style="width: 0%; height: 100%; background: var(--accent-blue); transition: width 0.1s linear;"></div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+          <button class="action-btn" id="btn-cancel-export">Cancel</button>
+          <button class="action-btn primary" id="btn-start-render" style="padding: 6px 14px;">
+            <span class="icon icon-sm">play_arrow</span> Start Export
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>
