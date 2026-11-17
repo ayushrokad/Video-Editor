@@ -149,10 +149,11 @@
             <div class="menu-entry" data-panel-toggle="panel-timeline"><span id="chk-panel-timeline">✓ Multitrack Timeline</span></div>
             <div class="menu-sep"></div>
             <div class="menu-section-label">WORKSPACES</div>
-            <div class="menu-entry" id="win-save-ws"><span>Save Custom Workspace...</span></div>
+            <div class="menu-entry" id="win-save-ws"><span>Save Workspace Layout...</span></div>
             <div id="custom-workspaces-menu-list"></div>
             <div class="menu-sep"></div>
-            <div class="menu-entry" id="win-reset-layout"><span>Reset Workspace to Default</span></div>
+            <div class="menu-entry" id="win-reset-current-ws"><span>Reset Current Workspace</span></div>
+            <div class="menu-entry" id="win-reset-all-ws"><span>Reset All Workspaces</span></div>
           </div>
         </div>
         <!-- Help -->
@@ -193,8 +194,9 @@
     </div>
   </header>
 
-  <!-- Hidden Local File Input -->
+  <!-- Hidden Local File Inputs (Import & Relink) -->
   <input type="file" id="video-file-input" accept="video/*,audio/*,image/*" multiple style="display: none;">
+  <input type="file" id="relink-file-input" accept="video/*,audio/*,image/*" style="display: none;">
 
   <!-- 2. Dynamic 6-Workspace Shell -->
   <main class="workspace-shell" id="workspace-shell" data-workspace="edit">
@@ -292,54 +294,127 @@
         </div>
 
         <div class="monitors-viewports-container" id="monitors-viewports-container">
-          <!-- Source Viewport -->
+          <!-- SOURCE MONITOR VIEWPORT (Original Media Inspection) -->
           <div class="monitor-viewport" id="viewport-source" style="display: none;">
+            <!-- Source Media Metadata & Audio Channel Strip -->
+            <div class="source-info-bar" id="source-info-bar" style="display: none;">
+              <div style="display: flex; align-items: center; gap: 6px; min-width: 0;">
+                <span style="color: var(--accent); font-weight: 700;">SOURCE:</span>
+                <span id="source-clip-title" style="color: #fff; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None</span>
+                <span id="source-meta-pill" style="font-size: 10px; color: var(--text-muted); font-family: monospace;"></span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                <select id="source-audio-channel" class="compact-select" title="Source Audio Channels">
+                  <option value="stereo">Audio: Stereo (L+R)</option>
+                  <option value="left">Audio: Left Ch 1</option>
+                  <option value="right">Audio: Right Ch 2</option>
+                  <option value="mute">Audio: Muted</option>
+                </select>
+                <span class="timecode-readout" id="source-tc-duration">00:00:00:00 / 00:00:00:00</span>
+              </div>
+            </div>
+
             <div class="monitor-canvas-container">
               <video id="source-video-element" class="monitor-view-element" playsinline style="display: none;"></video>
+              
+              <!-- Empty State -->
               <div class="monitor-empty-card" id="source-empty-card">
                 <span class="icon icon-lg" style="color: var(--accent);">video_file</span>
                 <div class="monitor-empty-title">No Source Media Loaded</div>
-                <div class="monitor-empty-desc">Double-click a clip in Project or Media Browser to inspect footage and set In/Out points.</div>
+                <div class="monitor-empty-desc">Select or double-click media in Project panel to inspect original footage, set In/Out ranges, and insert or overwrite into the timeline.</div>
                 <button class="action-btn-compact primary" id="src-empty-import-btn"><span class="icon icon-sm">file_upload</span> Import Media</button>
               </div>
+
+              <!-- Missing Media / Relink Prompt -->
+              <div class="monitor-empty-card" id="source-missing-card" style="display: none; border-color: var(--error);">
+                <span class="icon icon-lg" style="color: var(--error);">link_off</span>
+                <div class="monitor-empty-title" style="color: var(--error);">Media Offline — Relink Required</div>
+                <div class="monitor-empty-desc" id="source-missing-desc">Browser storage no longer holds the original media file. Relink it without losing timeline edits.</div>
+                <button class="action-btn-compact primary" id="src-btn-relink"><span class="icon icon-sm">link</span> Relink Media...</button>
+              </div>
             </div>
-            <div class="monitor-controls-strip">
-              <div style="display: flex; gap: 3px;">
+
+            <!-- Interactive Source Scrubber & In/Out Range Bar -->
+            <div class="source-scrubber-bar" id="source-scrubber-bar" style="display: none;" title="Scrub Source Media">
+              <div class="source-scrub-track" id="source-scrub-track">
+                <div class="source-inout-range" id="source-inout-range" style="left: 0%; width: 100%;"></div>
+                <div class="source-scrub-thumb" id="source-scrub-thumb" style="left: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Source-Specific Controls (In/Out, Frame Step, Insert, Overwrite, Drag Range) -->
+            <div class="monitor-controls-strip" id="source-controls-strip">
+              <div style="display: flex; gap: 2px; align-items: center;">
+                <button class="ctrl-btn" id="src-btn-goto-in" data-tooltip="Go to In Point (Shift+I)"><span class="icon icon-sm">skip_previous</span></button>
                 <button class="ctrl-btn" id="src-btn-mark-in" data-tooltip="Mark In (I)"><span class="icon icon-sm">first_page</span></button>
                 <button class="ctrl-btn" id="src-btn-mark-out" data-tooltip="Mark Out (O)"><span class="icon icon-sm">last_page</span></button>
+                <button class="ctrl-btn" id="src-btn-goto-out" data-tooltip="Go to Out Point (Shift+O)"><span class="icon icon-sm">skip_next</span></button>
+                <button class="ctrl-btn" id="src-btn-clear-io" data-tooltip="Clear In/Out (Alt+X)"><span class="icon icon-sm">backspace</span></button>
               </div>
-              <button class="ctrl-btn primary" id="src-btn-play" data-tooltip="Play / Pause Source"><span class="icon icon-sm" id="src-play-icon">play_arrow</span></button>
-              <button class="action-btn-compact primary" id="src-btn-insert" data-tooltip="Insert to Timeline (,)"><span class="icon icon-sm">input</span> Insert</button>
+
+              <div style="display: flex; gap: 3px; align-items: center;">
+                <button class="ctrl-btn" id="src-btn-step-prev" data-tooltip="Step 1 Frame Back"><span class="icon icon-sm">chevron_left</span></button>
+                <button class="ctrl-btn primary" id="src-btn-play" data-tooltip="Play / Pause Source"><span class="icon icon-sm" id="src-play-icon">play_arrow</span></button>
+                <button class="ctrl-btn" id="src-btn-step-next" data-tooltip="Step 1 Frame Forward"><span class="icon icon-sm">chevron_right</span></button>
+              </div>
+
+              <div style="display: flex; gap: 4px; align-items: center;">
+                <div class="source-drag-pill" id="src-drag-range-handle" draggable="true" data-tooltip="Drag Marked Range to Timeline">
+                  <span class="icon icon-sm">drag_indicator</span> Range
+                </div>
+                <button class="action-btn-compact primary" id="src-btn-insert" data-tooltip="Insert Source Range (,)">
+                  <span class="icon icon-sm">input</span> Insert
+                </button>
+                <button class="action-btn-compact" id="src-btn-overwrite" data-tooltip="Overwrite at Playhead (.)" style="border-color: var(--border);">
+                  <span class="icon icon-sm">file_download_done</span> Overwrite
+                </button>
+              </div>
             </div>
           </div>
 
           <div class="splitter-h" id="splitter-monitors" style="display: none;"></div>
 
-          <!-- Program Viewport -->
+          <!-- PROGRAM MONITOR VIEWPORT (Edited Sequence Composition) -->
           <div class="monitor-viewport" id="viewport-program" style="display: flex;">
-            <div class="monitor-canvas-container">
+            <div class="monitor-canvas-container" id="program-canvas-wrap">
               <canvas id="program-render-canvas" class="monitor-view-element" width="1920" height="1080"></canvas>
               <div class="safe-margins-overlay" id="safe-margins-overlay"></div>
+              <div class="program-overlays-hud" id="program-overlays-hud">
+                <span id="hud-clip-name">PROGRAM: Master Sequence</span>
+                <span id="hud-timecode">00:00:00:00</span>
+              </div>
               <div class="monitor-empty-card" id="program-empty-card">
                 <span class="icon icon-lg" style="color: var(--accent);">live_tv</span>
                 <div class="monitor-empty-title">Sequence is Empty</div>
-                <div class="monitor-empty-desc">Import footage and drag assets onto the Timeline tracks below, or click Graphics > New Title.</div>
+                <div class="monitor-empty-desc">Import footage and insert from Source Monitor or drag assets onto the Timeline tracks below.</div>
                 <div style="display: flex; gap: 6px;">
                   <button class="action-btn-compact primary" id="prg-empty-import-btn"><span class="icon icon-sm">file_upload</span> Import Footage</button>
                   <button class="action-btn-compact" id="prg-empty-title-btn"><span class="icon icon-sm">title</span> Add Title</button>
                 </div>
               </div>
             </div>
+
+            <!-- Program-Specific Controls (Sequence Transport, Loop, Safe Margins, Overlays, Compare, Fullscreen) -->
             <div class="monitor-controls-strip">
-              <div style="display: flex; gap: 3px; align-items: center;">
+              <div style="display: flex; gap: 2px; align-items: center;">
                 <button class="ctrl-btn" id="prg-btn-prev" data-tooltip="Step Back 5 Frames (Shift+Left)"><span class="icon icon-sm">fast_rewind</span></button>
                 <button class="ctrl-btn" id="prg-btn-step-prev" data-tooltip="Step 1 Frame Back (Left)"><span class="icon icon-sm">skip_previous</span></button>
-                <button class="ctrl-btn primary" id="prg-btn-play" data-tooltip="Play / Pause (Space)"><span class="icon icon-sm" id="prg-play-icon">play_arrow</span></button>
+                <button class="ctrl-btn primary" id="prg-btn-play" data-tooltip="Play / Pause Sequence (Space)"><span class="icon icon-sm" id="prg-play-icon">play_arrow</span></button>
                 <button class="ctrl-btn" id="prg-btn-step-next" data-tooltip="Step 1 Frame Forward (Right)"><span class="icon icon-sm">skip_next</span></button>
                 <button class="ctrl-btn" id="prg-btn-next" data-tooltip="Step Forward 5 Frames (Shift+Right)"><span class="icon icon-sm">fast_forward</span></button>
               </div>
-              <div style="font-size: 11px; color: var(--text-muted);" id="sequence-name-disp">Master Sequence · 1920×1080 · 24fps</div>
-              <button class="ctrl-btn" id="btn-toggle-safe-margins" data-tooltip="Toggle Safe Margins"><span class="icon icon-sm">crop_free</span></button>
+
+              <div style="font-size: 11px; color: var(--text-secondary); font-family: ui-monospace, monospace;" id="sequence-name-disp">
+                00:00:00:00 / 00:01:00:00
+              </div>
+
+              <div style="display: flex; gap: 2px; align-items: center;">
+                <button class="ctrl-btn" id="prg-btn-loop" data-tooltip="Loop Playback"><span class="icon icon-sm">repeat</span></button>
+                <button class="ctrl-btn" id="btn-toggle-safe-margins" data-tooltip="Safe Margins & Guides"><span class="icon icon-sm">crop_free</span></button>
+                <button class="ctrl-btn" id="prg-btn-overlays" data-tooltip="Toggle Sequence Overlays HUD"><span class="icon icon-sm">layers</span></button>
+                <button class="ctrl-btn" id="prg-btn-compare" data-tooltip="Before / After Grade Compare Wipe"><span class="icon icon-sm">compare</span></button>
+                <button class="ctrl-btn" id="prg-btn-fullscreen" data-tooltip="Fullscreen Program Preview"><span class="icon icon-sm">open_in_full</span></button>
+              </div>
             </div>
           </div>
         </div>
