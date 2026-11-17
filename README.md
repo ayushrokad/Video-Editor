@@ -16,7 +16,8 @@ All versions of the project are maintained within this single repository:
 - **[Version 4 (V4)](https://github.com/ayushrokad/Video-Editor/tree/v4):** Professional Interface Redesign & Adaptive Workspace System: Streamlined 34px Unified Chrome, Tabbed/Split Monitor Group (`Source` | `Program`), Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-and-Drop to Track Lanes, Progressive Disclosure Accordion Inspector, and Quiet Charcoal Design System.
 - **[Version 5 (V5)](https://github.com/ayushrokad/Video-Editor/tree/v5):** Six Distinct Specialist Workspaces (`Media`, `Edit`, `Motion`, `Color`, `Audio`, `Deliver`), Reorganized 13-Menu Hierarchy, `align_horizontal_center` Snapping with Snap Guide & Alt-Override, Timeline Context Menus, Web Audio Multichannel DSP Mixer & Bus Routing, 10-Category Transition Engine, and Deliver Render Queue.
 - **[Version 6 (V6)](https://github.com/ayushrokad/Video-Editor/tree/v6):** 4-Layer Persistent State Architecture (`projectState`, `sessionState`, `workspaceState`, `runtimeState`) with IndexedDB v2 + `visibilitychange` Flush, Real Program Monitor Video Decoding + Media Blob Rehydration & Relink Media, Distinct Source Monitor vs. Program Monitor Controls, and Viewport-Clamped Structured Docking & Redocking Manager.
-- **[Version 7 (V7 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v7):** Milestone M6 — Linked Video + Audio Editing (`linkGroupId`, Linked Selection `Shift+L`, Link `Ctrl+L` / Unlink `Ctrl+Shift+L`, Linked Move/Trim/Split/Delete, Out-of-Sync Offset Badges & `Move Into Sync`, `Reveal Original Media`) + Professional Deliver Export Studio (Quick & Advanced Modes, Capability-Driven Format Registry, Custom Presets, Real MP4/WebM/WAV PCM/PNG/JPEG Rendering, SRT Sidecar Export, Post-Export Media Validation, and Multi-Deliverable Queue).
+- **[Version 7 (V7)](https://github.com/ayushrokad/Video-Editor/tree/v7):** Milestone M6 — Linked Video + Audio Editing (`linkGroupId`, Linked Selection `Shift+L`, Link `Ctrl+L` / Unlink `Ctrl+Shift+L`, Linked Move/Trim/Split/Delete, Out-of-Sync Offset Badges & `Move Into Sync`, `Reveal Original Media`) + Professional Deliver Export Studio (Quick & Advanced Modes, Capability-Driven Format Registry, Custom Presets, Real MP4/WebM/WAV PCM/PNG/JPEG Rendering, SRT Sidecar Export, Post-Export Media Validation, and Multi-Deliverable Queue).
+- **[Version 8 (V8 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v8):** Milestone M7 — Removable, Dockable, Pinnable, Context-Aware 5-Tab Properties Panel (`Properties`, `Audio`, `Effects`, `Motion`, `Metadata`), Applied Effects Stack (Add/Toggle/Reorder/Remove + Live Render), Transform Keyframes & Easing Interpolation, Multi-Selection `Mixed` Values, Dedicated `Project Settings` & `Sequence Settings` Modals, Optional `History` & `Markers` Panels, and Quick Layout Presets (`Default Editing`, `Compact Editing`, `Dual Monitor`).
 - See [VERSIONS.md](VERSIONS.md) for the complete version changelog and branch guide.
 
 ### Key Architectural Pillars
@@ -69,13 +70,12 @@ FRAMEFLOW/
 - **M2 (Completed in V2):** Connected NLE Engine, Media Bins, Dual Monitors, Trimming Timeline, Inspector, and IndexedDB Autosave.
 - **M3 (Completed in V3):** Unified Material Symbols Rounded, Four-Zone Timeline (12 tools), Scoped Keyboard System, Visual Shortcut Customizer Modal, 6 Specialist Workspaces, Stereo VU Meter, and Export Queue.
 - **M4 (Completed in V4):** Professional Interface Redesign & Adaptive Workspace System: Unified 34px Application Chrome, Tabbed/Split Monitor Group, Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-to-Timeline, Progressive Disclosure Accordion Inspector, and Refined Charcoal Tokens.
-- **M5 (Completed in V5 - Current):** Six Distinct Specialist Workspaces, Reorganized 13-Menu Hierarchy, `align_horizontal_center` Snapping with Snap Guide & Context Menus, Web Audio Multichannel DSP Mixer & Buses, 10-Category Transition Shader Engine, Honest Runtime Diagnostics, and Deliver Offline Render Queue.
-- **M5:** WebCodecs Hardware Video Decoding & Multi-Stream JKL Transport.
-- **M6:** WebGPU Compositing, Blending Modes, and Real-Time Transition Shaders.
-- **M7:** Motion Graph Editor with Bezier Keyframe Interpolation.
-- **M8:** Full 3-Way Color Wheels & Scopes (Waveform, Vectorscope, Histogram).
-- **M9:** Client Export and Asynchronous Cloud Rendering Workers.
-- **M10:** Cloud Projects, Team Workspaces, and Review Links.
+- **M5 (Completed in V5/V6):** Six Distinct Specialist Workspaces, 4-Layer Persistent State Architecture, Real Program Monitor Video Decoding, Distinct Source/Program Controls, Viewport-Clamped Docking/Redocking Manager, Web Audio DSP Mixer, 10-Category Transition Engine, and Honest Runtime Diagnostics.
+- **M6 (Completed in V7):** Linked Video + Audio Editing (`linkGroupId`, Out-of-Sync Badges & Move Into Sync) and Professional Deliver Export Studio (Quick/Advanced Modes, Real MP4/WebM/WAV PCM/PNG/JPEG/SRT Export & Validation).
+- **M7 (Completed in V8 - Current):** Optional, Removable, Pinnable, Context-Aware 5-Tab Properties Panel (`Properties`, `Audio`, `Effects`, `Motion`, `Metadata`), Applied Effects Stack, Keyframe Interpolation, Relocated Project/Sequence Settings Modals, Optional `History` & `Markers` Utility Panels, and Quick Layout Presets.
+- **M8:** Full 3-Way Color Wheels & Real-Time GPU Scopes (Waveform, Vectorscope, RGB Parade).
+- **M9:** Client WebCodecs Hardware Muxing & Asynchronous Cloud FFmpeg Rendering Workers.
+- **M10:** Cloud Projects, Team Workspaces, and Frame-Accurate Review Links.
 - **M11:** Cross-Browser Hardening and Performance Benchmarking.
 
 ---

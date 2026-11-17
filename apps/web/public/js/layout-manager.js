@@ -90,6 +90,7 @@ export class FrameflowLayoutManager {
     const allPanelIds = [
       'panel-project', 'panel-effects', 'panel-color-clips',
       'monitors-pane', 'panel-inspector', 'panel-deliver-settings',
+      'panel-history', 'panel-markers',
       'panel-timeline', 'panel-color-wheels', 'panel-audio-console', 'panel-deliver-queue',
     ];
 
@@ -124,30 +125,41 @@ export class FrameflowLayoutManager {
       if (el) el.classList.remove('hidden-panel');
     }
 
-    // 3. Apply saved split ratios cleanly
-    const leftPanel = ['panel-project', 'panel-effects', 'panel-color-clips']
+    // 3. Apply saved split ratios cleanly (only for visible, non-floating docked panels)
+    const floats = layout.floatingPanels || {};
+    const leftDocked = ['panel-project', 'panel-effects', 'panel-color-clips']
       .map(id => document.getElementById(id))
-      .find(el => el && !el.classList.contains('hidden-panel'));
+      .filter(el => el && !el.classList.contains('hidden-panel') && !floats[el.id]);
 
-    const rightPanel = ['panel-inspector', 'panel-deliver-settings']
+    const rightDocked = ['panel-inspector', 'panel-deliver-settings', 'panel-history', 'panel-markers']
       .map(id => document.getElementById(id))
-      .find(el => el && !el.classList.contains('hidden-panel'));
+      .filter(el => el && !el.classList.contains('hidden-panel') && !floats[el.id]);
 
     const splitLeft = document.getElementById('splitter-left');
     const splitRight = document.getElementById('splitter-right');
     const splitRowV = document.getElementById('splitter-row-v');
 
-    if (leftPanel && layout.topSplit.leftPct > 0) {
-      leftPanel.style.width = `${layout.topSplit.leftPct}%`;
-      leftPanel.style.flex = 'none';
+    if (leftDocked.length > 0) {
+      const leftPct = layout.topSplit.leftPct > 0 ? layout.topSplit.leftPct : 18;
+      leftDocked[0].style.width = `${leftPct}%`;
+      leftDocked[0].style.flex = 'none';
+      for (let i = 1; i < leftDocked.length; i++) {
+        leftDocked[i].style.width = '220px';
+        leftDocked[i].style.flex = 'none';
+      }
       if (splitLeft) splitLeft.style.display = 'block';
     } else if (splitLeft) {
       splitLeft.style.display = 'none';
     }
 
-    if (rightPanel && layout.topSplit.rightPct > 0) {
-      rightPanel.style.width = `${layout.topSplit.rightPct}%`;
-      rightPanel.style.flex = 'none';
+    if (rightDocked.length > 0) {
+      const rightPct = layout.topSplit.rightPct > 0 ? layout.topSplit.rightPct : 22;
+      rightDocked[0].style.width = `${rightPct}%`;
+      rightDocked[0].style.flex = 'none';
+      for (let i = 1; i < rightDocked.length; i++) {
+        rightDocked[i].style.width = '220px';
+        rightDocked[i].style.flex = 'none';
+      }
       if (splitRight) splitRight.style.display = 'block';
     } else if (splitRight) {
       splitRight.style.display = 'none';
@@ -164,7 +176,6 @@ export class FrameflowLayoutManager {
     }
 
     // 4. Restore any saved floating panels for THIS workspace (clamped to current viewport!)
-    const floats = layout.floatingPanels || {};
     for (const [panelId, floatMeta] of Object.entries(floats)) {
       const el = document.getElementById(panelId);
       if (!el || el.classList.contains('hidden-panel')) continue;
@@ -219,7 +230,7 @@ export class FrameflowLayoutManager {
     };
 
     layout.floatingPanels[panelId] = floatMeta;
-    this._applyFloatingGeometry(panel, floatMeta);
+    this.applyActiveWorkspaceLayout();
     this.store.scheduleSave();
     this.onLayoutChange();
   }
@@ -260,18 +271,35 @@ export class FrameflowLayoutManager {
     }
   }
 
-  togglePanelVisibility(panelId) {
+  isPanelVisible(panelId) {
+    return this.getActiveLayout().visiblePanels.includes(panelId);
+  }
+
+  closePanel(panelId) {
     const layout = this.getActiveLayout();
     const idx = layout.visiblePanels.indexOf(panelId);
     if (idx >= 0) {
       layout.visiblePanels.splice(idx, 1);
       delete layout.floatingPanels[panelId];
-    } else {
-      layout.visiblePanels.push(panelId);
+      this.applyActiveWorkspaceLayout();
+      this.store.scheduleSave(200);
+      this.onLayoutChange();
     }
-    this.applyActiveWorkspaceLayout();
-    this.store.scheduleSave();
-    this.onLayoutChange();
+  }
+
+  openPanel(panelId) {
+    const layout = this.getActiveLayout();
+    if (!layout.visiblePanels.includes(panelId)) {
+      layout.visiblePanels.push(panelId);
+      this.applyActiveWorkspaceLayout();
+      this.store.scheduleSave(200);
+      this.onLayoutChange();
+    }
+  }
+
+  togglePanelVisibility(panelId) {
+    if (this.isPanelVisible(panelId)) this.closePanel(panelId);
+    else this.openPanel(panelId);
   }
 
   updateSplitRatio(region, newPx) {

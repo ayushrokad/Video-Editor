@@ -39,6 +39,17 @@ import {
   moveClipIntoSync,
 } from './js/linked-clips.js';
 import {
+  AVAILABLE_CLIP_EFFECTS,
+  resolvePropertiesContext,
+  ensureEffectsArray,
+  addClipEffect,
+  toggleClipEffect,
+  moveClipEffect,
+  removeClipEffect,
+  toggleKeyframeAtLocalTime,
+  evaluateKeyframedProp,
+} from './js/properties-controller.js';
+import {
   FrameflowStateStore,
   createDefaultProjectState,
   createDefaultSessionState,
@@ -57,6 +68,7 @@ const renderQueue = new RenderQueueManager(() => {
 
 const layoutManager = new FrameflowLayoutManager(store, () => {
   updateWindowPanelsCheckmarks();
+  syncPropertiesToggleButton();
 });
 
 const TRACK_COLORS = ['#4B8DFF', '#8B5CF6', '#38C995', '#06B6D4', '#E5B45C', '#E36F78'];
@@ -66,6 +78,8 @@ const uiState = {
   assetSearchQuery: '',
   selectedFxCategory: 'All',
   pendingRelinkAssetId: null,
+  activePropertiesTab: 'properties', // 'properties' | 'audio' | 'effects' | 'motion' | 'metadata'
+  pinnedClipId: null,
   undoStack: [],
   redoStack: [],
   deliverMode: 'quick', // 'quick' | 'advanced'
@@ -432,21 +446,21 @@ function applyWorkspaceUI(ws) {
 
   if (ws === 'media') {
     if (projLabel) projLabel.textContent = 'Media Browser & Bins';
-    if (inspTitle) inspTitle.textContent = 'Source Asset Metadata';
+    if (inspTitle) inspTitle.textContent = 'Metadata';
     if (inspIcon)  inspIcon.textContent = 'description';
   } else if (ws === 'edit') {
     if (projLabel) projLabel.textContent = 'Project';
-    if (inspTitle) inspTitle.textContent = 'Inspector';
+    if (inspTitle) inspTitle.textContent = 'Properties';
     if (inspIcon)  inspIcon.textContent = 'tune';
     if (prgLabel)  prgLabel.textContent = 'Program: Master';
   } else if (ws === 'motion') {
-    if (inspTitle) inspTitle.textContent = 'Effect Controls & Keyframes';
+    if (inspTitle) inspTitle.textContent = 'Properties & Motion';
     if (inspIcon)  inspIcon.textContent = 'motion_mode';
     if (prgLabel)  prgLabel.textContent = 'Composition Viewer';
     renderEffectsLibrary();
     setTimeout(drawMotionGraphCanvas, 20);
   } else if (ws === 'color') {
-    if (inspTitle) inspTitle.textContent = 'Live Scopes & Primary Grade';
+    if (inspTitle) inspTitle.textContent = 'Live Scopes & Grade';
     if (inspIcon)  inspIcon.textContent = 'analytics';
     if (prgLabel)  prgLabel.textContent = 'Color Grading Viewer';
     renderColorClipsGallery();
@@ -459,17 +473,25 @@ function applyWorkspaceUI(ws) {
   }
 
   updateWindowPanelsCheckmarks();
+  syncPropertiesToggleButton();
   renderCustomWorkspacesMenu();
+}
+
+function syncPropertiesToggleButton() {
+  const btn = document.getElementById('btn-toggle-properties');
+  if (btn) btn.classList.toggle('header-toggle-active', layoutManager.isPanelVisible('panel-inspector'));
 }
 
 function updateWindowPanelsCheckmarks() {
   const layout = layoutManager.getActiveLayout();
   const labels = {
+    'panel-inspector': 'Properties',
     'panel-project': 'Project / Media Browser',
-    'panel-effects': 'Effects & Transitions',
+    'panel-effects': 'Effects Library',
     'monitors-pane': 'Source / Program Monitors',
-    'panel-inspector': 'Contextual Inspector',
     'panel-timeline': 'Multitrack Timeline',
+    'panel-history': 'History',
+    'panel-markers': 'Markers',
   };
   for (const [id, label] of Object.entries(labels)) {
     const chk = document.getElementById(`chk-${id}`);
@@ -485,6 +507,37 @@ function initPanelFocusAndMaximize() {
       if (panel) toggleMaximizePanel(panel);
     });
   });
+
+  // Close panel buttons (NEVER alters timeline selection or project state!)
+  document.querySelectorAll('.btn-close-panel').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.closePanel;
+      if (id) layoutManager.closePanel(id);
+    });
+  });
+
+  // Header Properties toolbar toggle
+  document.getElementById('btn-toggle-properties')?.addEventListener('click', () => {
+    layoutManager.togglePanelVisibility('panel-inspector');
+    if (layoutManager.isPanelVisible('panel-inspector')) renderInspector();
+  });
+
+  // Pin / Unpin Properties button (preserves inspected object without altering timeline selection!)
+  document.getElementById('btn-pin-properties')?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (uiState.pinnedClipId) {
+      uiState.pinnedClipId = null;
+    } else {
+      const curId = getSelectedClipId();
+      if (!curId) return;
+      uiState.pinnedClipId = curId;
+    }
+    document.getElementById('btn-pin-properties')?.classList.toggle('pin-active-btn', !!uiState.pinnedClipId);
+    renderInspector();
+  });
+
+  document.getElementById('btn-markers-panel-add')?.addEventListener('click', addMarkerAtPlayhead);
 
   document.querySelectorAll('.panel').forEach(panel => {
     panel.addEventListener('mousedown', () => {
@@ -505,7 +558,7 @@ function initSplitters() {
     .map(id => document.getElementById(id)).find(el => el && !el.classList.contains('hidden-panel') && !el.classList.contains('floating-panel')),
     'width', false, 180, 620, (px) => layoutManager.updateSplitRatio('left', px));
 
-  bindSplitter('splitter-right', () => ['panel-inspector', 'panel-deliver-settings']
+  bindSplitter('splitter-right', () => ['panel-inspector', 'panel-deliver-settings', 'panel-history', 'panel-markers']
     .map(id => document.getElementById(id)).find(el => el && !el.classList.contains('hidden-panel') && !el.classList.contains('floating-panel')),
     'width', true, 220, 640, (px) => layoutManager.updateSplitRatio('right', px));
 
@@ -653,7 +706,14 @@ function renderAssetsList() {
   const container = document.getElementById('assets-list');
   if (!container) return;
 
-  const assets = Object.values(store.projectState.assets).filter(a =>
+  const allAssets = Object.values(store.projectState.assets);
+  const seq = getActiveSequence();
+  const footer = document.getElementById('project-panel-footer');
+  if (footer) {
+    footer.innerHTML = `<span>${allAssets.length} ${allAssets.length === 1 ? 'asset' : 'assets'} · ${seq.clips.length} ${seq.clips.length === 1 ? 'clip' : 'clips'}</span><span>${seq.width}×${seq.height} · ${seq.fps}fps</span>`;
+  }
+
+  const assets = allAssets.filter(a =>
     !uiState.assetSearchQuery || a.name.toLowerCase().includes(uiState.assetSearchQuery)
   );
   const srcId = store.sessionState.sourceAssetId;
@@ -1300,28 +1360,72 @@ function renderSequenceFrameAtTime(ctx, width, height, timeSec) {
   const visibleVideoTracks = seq.tracks.filter(t => t.type === 'video' && t.visible);
   const clipsAtTime = seq.clips.filter(c => timeSec >= c.timelineStart && timeSec <= c.timelineStart + c.timelineDuration);
 
-  const buildFilterString = (c) => {
-    const bright = Math.max(0.1, 1 + (c.brightness || 0) + (c.exposure || 0) * 0.25 + (c.lift || 0) * 0.2 + (c.gain || 0) * 0.2);
-    const cont = Math.max(0.1, c.contrast || 1);
-    const sat = Math.max(0, c.saturation ?? 1);
-    const hue = (c.temperature || 0) * 0.4;
-    let f = `brightness(${bright.toFixed(2)}) contrast(${cont.toFixed(2)}) saturate(${sat.toFixed(2)}) hue-rotate(${hue.toFixed(0)}deg)`;
+  const buildFilterString = (clip) => {
+    const c = clip.colorEffects || {};
+    let bright = Math.max(0.1, 1 + (c.brightness || 0) + (c.exposure || 0) * 0.25 + (c.lift || 0) * 0.2 + (c.gain || 0) * 0.2);
+    let cont = Math.max(0.1, c.contrast || 1);
+    let sat = Math.max(0, c.saturation ?? 1);
+    let hue = (c.temperature || 0) * 0.4;
+    let extra = '';
+
+    for (const fx of (clip.appliedEffects || [])) {
+      if (!fx.enabled) continue;
+      if (fx.id === 'color_grade') {
+        bright = Math.max(0.1, bright + (fx.params.exposure || 0) * 0.25);
+        cont *= Math.max(0.1, fx.params.contrast ?? 1);
+        sat *= Math.max(0, fx.params.saturation ?? 1);
+        hue += (fx.params.temperature || 0) * 0.4;
+      } else if (fx.id === 'gaussian_blur') {
+        extra += ` blur(${(fx.params.radiusPx || 0).toFixed(1)}px)`;
+      } else if (fx.id === 'grayscale') {
+        extra += ` grayscale(${Math.round((fx.params.amount ?? 1) * 100)}%)`;
+      } else if (fx.id === 'sepia') {
+        extra += ` sepia(${Math.round((fx.params.amount ?? 0.7) * 100)}%)`;
+      } else if (fx.id === 'invert') {
+        extra += ` invert(${Math.round((fx.params.amount ?? 1) * 100)}%)`;
+      }
+    }
+    let f = `brightness(${bright.toFixed(2)}) contrast(${cont.toFixed(2)}) saturate(${sat.toFixed(2)}) hue-rotate(${hue.toFixed(0)}deg)${extra}`;
     if (c.invert) f += ' invert(100%)';
     return f;
   };
 
   const drawSingleClip = (clip, skipGrade = false) => {
     ctx.save();
+    const localT = Math.max(0, timeSec - clip.timelineStart);
     const t = clip.transform;
-    ctx.translate(width / 2 + t.positionX, height / 2 + t.positionY);
-    ctx.rotate((t.rotation * Math.PI) / 180);
-    ctx.scale(t.scale, t.scale);
-    ctx.globalAlpha *= t.opacity;
-    ctx.filter = skipGrade ? 'none' : buildFilterString(clip.colorEffects);
+    const posX = evaluateKeyframedProp(clip, 'positionX', localT, t.positionX || 0);
+    const posY = evaluateKeyframedProp(clip, 'positionY', localT, t.positionY || 0);
+    const sc   = evaluateKeyframedProp(clip, 'scale',     localT, t.scale ?? 1);
+    const rot  = evaluateKeyframedProp(clip, 'rotation',  localT, t.rotation || 0);
+    const opac = evaluateKeyframedProp(clip, 'opacity',   localT, t.opacity ?? 1);
+
+    if (clip.blendMode && clip.blendMode !== 'source-over') {
+      ctx.globalCompositeOperation = clip.blendMode;
+    }
+
+    // Apply Crop clip region if set
+    const crop = clip.crop;
+    if (crop && (crop.top || crop.bottom || crop.left || crop.right)) {
+      const cx = (crop.left / 100) * width;
+      const cy = (crop.top / 100) * height;
+      const cw = width * Math.max(0.05, 1 - (crop.left + crop.right) / 100);
+      const ch = height * Math.max(0.05, 1 - (crop.top + crop.bottom) / 100);
+      ctx.beginPath();
+      ctx.rect(cx, cy, cw, ch);
+      ctx.clip();
+    }
+
+    ctx.translate(width / 2 + posX, height / 2 + posY);
+    ctx.rotate((rot * Math.PI) / 180);
+    ctx.scale(sc, sc);
+    ctx.globalAlpha *= Math.max(0, Math.min(1, opac));
+    ctx.filter = skipGrade ? 'none' : buildFilterString(clip);
 
     if (clip.isTitle) {
-      ctx.fillStyle = '#ffffff';
-      ctx.font = `700 ${Math.round(width * 0.048)}px Inter, sans-serif`;
+      ctx.fillStyle = clip.titleColor || '#ffffff';
+      const fSize = clip.titleFontSize || Math.round(width * 0.048);
+      ctx.font = `700 ${fSize}px Inter, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.shadowColor = 'rgba(0,0,0,0.75)';
@@ -1332,22 +1436,34 @@ function renderSequenceFrameAtTime(ctx, width, height, timeSec) {
       const vid = dec ? dec.videoEl : null;
 
       if (vid && !dec.missing) {
-        const srcTime = Math.max(0, clip.sourceStart + (timeSec - clip.timelineStart) * (clip.speed || 1));
+        const speed = clip.speed || 1;
+        const offsetInClip = clip.reverse ? Math.max(0, clip.timelineDuration - localT) : localT;
+        const srcTime = Math.max(0, (clip.sourceStart || 0) + offsetInClip * speed);
         const clampedSrc = isFinite(vid.duration) && vid.duration > 0 ? Math.min(vid.duration - 0.02, srcTime) : srcTime;
 
-        // Keep decoder time synced smoothly; seeked listener re-renders exact frame as soon as decoded
         if (Math.abs(vid.currentTime - clampedSrc) > 0.04) {
           try { vid.currentTime = clampedSrc; } catch {}
         }
 
         if (vid.readyState >= 2) {
-          // Aspect-preserving contain draw of actual decoded video frame
           const vw = vid.videoWidth || width;
           const vh = vid.videoHeight || height;
           const scale = Math.min(width / vw, height / vh);
           const dw = vw * scale;
           const dh = vh * scale;
           ctx.drawImage(vid, -dw / 2, -dh / 2, dw, dh);
+
+          // Render Cinematic Vignette overlay if enabled in Applied Effects
+          const vigFx = !skipGrade && (clip.appliedEffects || []).find(e => e.id === 'vignette' && e.enabled);
+          if (vigFx) {
+            ctx.filter = 'none';
+            const r = Math.hypot(dw / 2, dh / 2);
+            const g = ctx.createRadialGradient(0, 0, r * 0.35, 0, 0, r);
+            g.addColorStop(0, 'rgba(0,0,0,0)');
+            g.addColorStop(1, `rgba(0,0,0,${(vigFx.params.strength ?? 0.45).toFixed(2)})`);
+            ctx.fillStyle = g;
+            ctx.fillRect(-dw / 2, -dh / 2, dw, dh);
+          }
         } else {
           // Decoder still seeking frame — dark neutral status (auto-redraws on seeked/loadeddata)
           ctx.fillStyle = '#0B0E14';
@@ -2826,27 +2942,39 @@ function renderDeliverQueue() {
 
 function renderInspector() {
   const container = document.getElementById('inspector-content');
+  const tabsBar = document.getElementById('properties-tabs-bar');
   if (!container) return;
-  const clip = getActiveClip();
+
   const seq = getActiveSequence();
   const ws = store.workspaceState.activeWorkspace;
   const statusInfo = document.getElementById('status-clip-info');
 
+  // Update Project Panel compact asset status footer
+  const projFooter = document.getElementById('project-panel-footer');
+  if (projFooter) {
+    const assetsCount = Object.keys(store.projectState.assets).length;
+    const offlineCount = Array.from(store.runtimeState.decoders.values()).filter(d => d.missing).length;
+    projFooter.innerHTML = `<span>${assetsCount} asset${assetsCount === 1 ? '' : 's'}${offlineCount > 0 ? ` · <strong style="color:var(--error);">${offlineCount} offline</strong>` : ''}</span><span>IndexedDB</span>`;
+  }
+
+  // MEDIA WORKSPACE: Source Asset Metadata
   if (ws === 'media') {
+    if (tabsBar) tabsBar.style.display = 'none';
     const asset = store.sessionState.sourceAssetId ? store.projectState.assets[store.sessionState.sourceAssetId] : null;
     if (!asset) {
-      container.innerHTML = `<div style="padding: 16px; color: var(--text-muted); font-size: 11.5px;">Select a media asset to inspect dimensions, codec, duration, and relink status.</div>`;
+      container.innerHTML = `<div style="padding: 18px 12px; color: var(--text-muted); font-size: 11.5px; text-align: center;">Select a media asset to inspect source metadata and availability.</div>`;
       return;
     }
     const dec = store.runtimeState.decoders.get(asset.id);
     container.innerHTML = `
       <div class="inspector-accordion">
-        <div class="accordion-header"><span>Source Asset Metadata</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-header"><span>Source Metadata</span><span class="icon icon-sm">expand_more</span></div>
         <div class="accordion-content">
           <div class="field-row"><div class="field-header"><span>Filename</span><span class="field-val">${asset.name}</span></div></div>
           <div class="field-row"><div class="field-header"><span>Status</span><span class="field-val" style="color: ${dec?.missing ? 'var(--error)' : 'var(--success)'};">${dec?.missing ? 'MEDIA OFFLINE' : 'Online'}</span></div></div>
           <div class="field-row"><div class="field-header"><span>Dimensions</span><span class="field-val">${asset.width} × ${asset.height}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Duration</span><span class="field-val">${formatTimecode(asset.duration, 24)}</span></div></div>
+          <div class="field-row"><div class="field-header"><span>Duration</span><span class="field-val">${formatTimecode(asset.duration, seq.fps)}</span></div></div>
+          <div class="field-row"><div class="field-header"><span>MIME / Codec</span><span class="field-val">${asset.type}</span></div></div>
           <div class="field-row"><div class="field-header"><span>File Size</span><span class="field-val">${(asset.size / (1024 * 1024)).toFixed(2)} MB</span></div></div>
           ${dec?.missing ? `<button class="action-btn-compact primary" id="insp-relink-asset-btn">Relink Media File...</button>` : ''}
         </div>
@@ -2856,7 +2984,10 @@ function renderInspector() {
     return;
   }
 
+  // COLOR WORKSPACE: Live Pixel Scopes + Primary Grade
   if (ws === 'color') {
+    if (tabsBar) tabsBar.style.display = 'none';
+    const clip = getActiveClip();
     const c = clip?.colorEffects || { exposure: 0, contrast: 1, saturation: 1, temperature: 0 };
     container.innerHTML = `
       <div class="inspector-accordion">
@@ -2887,116 +3018,503 @@ function renderInspector() {
     return;
   }
 
-  if (!clip) {
+  // CONTEXTUAL 5-TAB PROPERTIES PANEL (Edit / Motion)
+  const ctx = resolvePropertiesContext(seq, store.sessionState.selectedClipIds, uiState.pinnedClipId);
+  if (!ctx.pinned && uiState.pinnedClipId) {
+    // Pinned clip was deleted -> clear stale pin cleanly
+    uiState.pinnedClipId = null;
+    document.getElementById('btn-pin-properties')?.classList.remove('pin-active-btn');
+  }
+
+  // EMPTY SELECTION: No Project Overview bloat — clean contextual prompt!
+  if (ctx.mode === 'empty') {
     if (statusInfo) statusInfo.textContent = seq.name;
+    if (tabsBar) tabsBar.style.display = 'none';
     container.innerHTML = `
-      <div class="inspector-accordion">
-        <div class="accordion-header"><span>Master Sequence Settings</span><span class="icon icon-sm">expand_more</span></div>
-        <div class="accordion-content">
-          <div class="field-row"><div class="field-header"><span>Sequence</span><span class="field-val">${seq.name}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Resolution</span><span class="field-val">${seq.width} × ${seq.height}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Frame Rate</span><span class="field-val">${seq.fps}.00 fps</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Duration</span><span class="field-val">${formatTimecode(seq.duration, seq.fps)}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Markers</span><span class="field-val">${seq.markers.length}</span></div></div>
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 36px 16px; gap: 8px;">
+        <span class="icon icon-lg" style="color: var(--text-muted);">touch_app</span>
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);">No Clip Selected</div>
+        <div style="font-size: 11px; color: var(--text-muted); line-height: 1.45;">
+          Select a video, audio, or title clip on the timeline to edit its Transform, Audio, Effects, Motion keyframes, or Metadata.
         </div>
-      </div>
-      <div class="inspector-accordion">
-        <div class="accordion-header"><span>Project Overview</span><span class="icon icon-sm">expand_more</span></div>
-        <div class="accordion-content">
-          <div class="field-row"><div class="field-header"><span>Imported Assets</span><span class="field-val">${Object.keys(store.projectState.assets).length}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Timeline Clips</span><span class="field-val">${seq.clips.length}</span></div></div>
-          <div class="field-row"><div class="field-header"><span>Tracks</span><span class="field-val">${seq.tracks.filter(t => t.type==='video').length}V / ${seq.tracks.filter(t => t.type==='audio').length}A</span></div></div>
+        <div style="display: flex; gap: 6px; margin-top: 6px;">
+          <button class="action-btn-compact" id="btn-empty-seq-settings" style="border-color: var(--border);">Sequence Settings...</button>
+          <button class="action-btn-compact" id="btn-empty-hide-props" style="border-color: var(--border);">Hide Panel</button>
         </div>
       </div>
     `;
-    bindAccordionToggles(container);
+    document.getElementById('btn-empty-seq-settings')?.addEventListener('click', openSequenceSettingsModal);
+    document.getElementById('btn-empty-hide-props')?.addEventListener('click', () => layoutManager.closePanel('panel-inspector'));
     return;
   }
 
-  if (statusInfo) statusInfo.textContent = `Selected: ${clip.name}`;
-  const track = seq.tracks.find(t => t.id === clip.trackId);
-
-  if (track && track.type === 'audio') {
-    const a = clip.audio;
-    container.innerHTML = `
-      <div class="inspector-accordion">
-        <div class="accordion-header"><span>Audio Clip: ${clip.name}</span><span class="icon icon-sm">expand_more</span></div>
-        <div class="accordion-content">
-          <div class="field-row"><div class="field-header"><span>Volume (dB)</span><span class="field-val" id="disp-vol">${a.volumeDb.toFixed(1)} dB</span></div><input type="range" id="insp-vol" min="-40" max="12" step="0.5" value="${a.volumeDb}"></div>
-          <div class="field-row"><div class="field-header"><span>Pan</span><span class="field-val" id="disp-pan">${a.pan}</span></div><input type="range" id="insp-pan" min="-100" max="100" step="1" value="${a.pan}"></div>
-          <div class="field-row"><div class="field-header"><span>Fade In</span><span class="field-val" id="disp-fi">${(a.fadeIn||0).toFixed(1)}s</span></div><input type="range" id="insp-fi" min="0" max="5" step="0.1" value="${a.fadeIn||0}"></div>
-          <div class="field-row"><div class="field-header"><span>Fade Out</span><span class="field-val" id="disp-fo">${(a.fadeOut||0).toFixed(1)}s</span></div><input type="range" id="insp-fo" min="0" max="5" step="0.1" value="${a.fadeOut||0}"></div>
-        </div>
-      </div>
-    `;
-    bindSlider('insp-vol', 'disp-vol', v => { clip.audio.volumeDb = v; }, v => `${v.toFixed(1)} dB`);
-    bindSlider('insp-pan', 'disp-pan', v => { clip.audio.pan = v; }, v => String(v));
-    bindSlider('insp-fi', 'disp-fi', v => { clip.audio.fadeIn = v; }, v => `${v.toFixed(1)}s`);
-    bindSlider('insp-fo', 'disp-fo', v => { clip.audio.fadeOut = v; }, v => `${v.toFixed(1)}s`);
-    bindAccordionToggles(container);
-    return;
+  // Ensure active tab is valid for the selected object type
+  if (!ctx.availableTabs.includes(uiState.activePropertiesTab)) {
+    uiState.activePropertiesTab = ctx.availableTabs[0] || 'properties';
   }
 
-  const t = clip.transform;
-  const c = clip.colorEffects;
-  const dec = clip.assetId ? store.runtimeState.decoders.get(clip.assetId) : null;
+  const tabLabels = {
+    properties: ctx.mode === 'title' ? 'Title' : 'Video',
+    audio: 'Audio',
+    effects: 'Effects',
+    motion: 'Motion',
+    metadata: 'Metadata',
+  };
 
-  container.innerHTML = `
-    ${dec?.missing ? `
-      <div style="margin: 8px; padding: 8px; background: rgba(227,111,120,0.14); border: 1px solid var(--error); border-radius: 4px; font-size: 11px;">
-        <strong style="color: var(--error);">Media Offline:</strong> Original footage requires relinking.
-        <button class="action-btn-compact primary" id="insp-relink-clip-btn" style="margin-top: 6px; width: 100%; justify-content: center;">Relink Media...</button>
+  if (tabsBar) {
+    tabsBar.style.display = 'flex';
+    tabsBar.innerHTML = ctx.availableTabs.map(tKey => `
+      <button class="props-tab ${uiState.activePropertiesTab === tKey ? 'active' : ''}" data-ptab="${tKey}">${tabLabels[tKey]}</button>
+    `).join('');
+    tabsBar.querySelectorAll('.props-tab').forEach(b => b.addEventListener('click', () => {
+      uiState.activePropertiesTab = b.dataset.ptab;
+      renderInspector();
+    }));
+  }
+
+  const clip = ctx.primaryClip;
+  if (statusInfo) {
+    statusInfo.textContent = ctx.mode === 'multi'
+      ? `${ctx.clips.length} Clips Selected`
+      : `Selected: ${clip.name}`;
+  }
+
+  const headerBanner = `
+    <div class="props-context-banner">
+      <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <strong style="color: #fff;">${ctx.mode === 'multi' ? `${ctx.clips.length} Clips Selected` : clip.name}</strong>
+        ${ctx.mode === 'linked-av' ? `<span style="font-size: 9.5px; color: var(--accent-cyan); margin-left: 4px;">(Linked V+A)</span>` : ''}
       </div>
-    ` : ''}
-    <div class="inspector-accordion">
-      <div class="accordion-header"><span>Video Transform · ${clip.name}</span><span class="icon icon-sm">expand_more</span></div>
-      <div class="accordion-content">
-        <div class="field-row"><div class="field-header"><span>Scale</span><span class="field-val" id="disp-scale">${t.scale.toFixed(2)}x</span></div><input type="range" id="insp-scale" min="0.1" max="3" step="0.05" value="${t.scale}"></div>
-        <div class="field-row"><div class="field-header"><span>Position X</span><span class="field-val" id="disp-posx">${t.positionX}px</span></div><input type="range" id="insp-posx" min="-600" max="600" step="5" value="${t.positionX}"></div>
-        <div class="field-row"><div class="field-header"><span>Position Y</span><span class="field-val" id="disp-posy">${t.positionY}px</span></div><input type="range" id="insp-posy" min="-400" max="400" step="5" value="${t.positionY}"></div>
-        <div class="field-row"><div class="field-header"><span>Rotation</span><span class="field-val" id="disp-rot">${t.rotation}°</span></div><input type="range" id="insp-rot" min="-180" max="180" step="1" value="${t.rotation}"></div>
-        <div class="field-row"><div class="field-header"><span>Opacity</span><span class="field-val" id="disp-opac">${Math.round(t.opacity * 100)}%</span></div><input type="range" id="insp-opac" min="0" max="1" step="0.05" value="${t.opacity}"></div>
-      </div>
-    </div>
-    ${clip.transitionIn ? `
-      <div class="inspector-accordion">
-        <div class="accordion-header"><span>Transition: ${clip.transitionIn.name}</span><span class="icon icon-sm">expand_more</span></div>
-        <div class="accordion-content">
-          <div class="field-row"><div class="field-header"><span>Duration</span><span class="field-val" id="disp-tr-dur">${clip.transitionIn.duration.toFixed(2)}s</span></div><input type="range" id="insp-tr-dur" min="0.2" max="4" step="0.1" value="${clip.transitionIn.duration}"></div>
-          <button class="action-btn-compact danger" id="btn-remove-tr">Remove Transition</button>
-        </div>
-      </div>
-    ` : ''}
-    <div class="inspector-accordion">
-      <div class="accordion-header"><span>Color Grading</span><span class="icon icon-sm">expand_more</span></div>
-      <div class="accordion-content">
-        <div class="field-row"><div class="field-header"><span>Exposure</span><span class="field-val" id="disp-exp">${c.exposure.toFixed(2)}</span></div><input type="range" id="insp-exp" min="-2" max="2" step="0.05" value="${c.exposure}"></div>
-        <div class="field-row"><div class="field-header"><span>Contrast</span><span class="field-val" id="disp-cont">${c.contrast.toFixed(2)}</span></div><input type="range" id="insp-cont" min="0" max="2" step="0.05" value="${c.contrast}"></div>
-        <div class="field-row"><div class="field-header"><span>Saturation</span><span class="field-val" id="disp-sat">${c.saturation.toFixed(2)}</span></div><input type="range" id="insp-sat" min="0" max="2" step="0.05" value="${c.saturation}"></div>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <label style="font-size: 11px; display: flex; gap: 4px; align-items: center;"><input type="checkbox" id="insp-invert" ${c.invert ? 'checked' : ''}> Invert</label>
-          <button class="action-btn-compact" id="btn-reset-clip-grade">Reset</button>
-        </div>
-      </div>
+      ${ctx.pinned ? `<span style="font-size: 9.5px; color: var(--accent); font-weight: 700;">PINNED</span>` : ''}
     </div>
   `;
 
-  document.getElementById('insp-relink-clip-btn')?.addEventListener('click', () => triggerRelinkForAsset(clip.assetId));
-  bindSlider('insp-scale', 'disp-scale', v => { clip.transform.scale = v; }, v => `${v.toFixed(2)}x`);
-  bindSlider('insp-posx', 'disp-posx', v => { clip.transform.positionX = v; }, v => `${v}px`);
-  bindSlider('insp-posy', 'disp-posy', v => { clip.transform.positionY = v; }, v => `${v}px`);
-  bindSlider('insp-rot', 'disp-rot', v => { clip.transform.rotation = v; }, v => `${v}°`);
-  bindSlider('insp-opac', 'disp-opac', v => { clip.transform.opacity = v; }, v => `${Math.round(v * 100)}%`);
-  bindSlider('insp-exp', 'disp-exp', v => { clip.colorEffects.exposure = v; }, v => v.toFixed(2));
-  bindSlider('insp-cont', 'disp-cont', v => { clip.colorEffects.contrast = v; }, v => v.toFixed(2));
-  bindSlider('insp-sat', 'disp-sat', v => { clip.colorEffects.saturation = v; }, v => v.toFixed(2));
-  if (clip.transitionIn) {
-    bindSlider('insp-tr-dur', 'disp-tr-dur', v => { clip.transitionIn.duration = v; }, v => `${v.toFixed(2)}s`);
-    document.getElementById('btn-remove-tr')?.addEventListener('click', () => executeCommand('Remove Transition', () => { clip.transitionIn = null; }));
+  // MULTI-CLIP SELECTION (Shared editable properties with honest Mixed indicators!)
+  if (ctx.mode === 'multi') {
+    const sh = ctx.shared;
+    container.innerHTML = `
+      ${headerBanner}
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Shared Properties (${ctx.clips.length} Clips)</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row">
+            <div class="field-header"><span>Scale</span><span class="${sh.scale.mixed ? 'mixed-val-badge' : 'field-val'}" id="disp-m-scale">${sh.scale.mixed ? 'Mixed' : `${(sh.scale.value ?? 1).toFixed(2)}x`}</span></div>
+            <input type="range" id="insp-m-scale" min="0.1" max="3" step="0.05" value="${sh.scale.mixed ? 1 : (sh.scale.value ?? 1)}">
+          </div>
+          <div class="field-row">
+            <div class="field-header"><span>Opacity</span><span class="${sh.opacity.mixed ? 'mixed-val-badge' : 'field-val'}" id="disp-m-opac">${sh.opacity.mixed ? 'Mixed' : `${Math.round((sh.opacity.value ?? 1) * 100)}%`}</span></div>
+            <input type="range" id="insp-m-opac" min="0" max="1" step="0.05" value="${sh.opacity.mixed ? 1 : (sh.opacity.value ?? 1)}">
+          </div>
+          <div class="field-row">
+            <div class="field-header"><span>Volume (dB)</span><span class="${sh.volumeDb.mixed ? 'mixed-val-badge' : 'field-val'}" id="disp-m-vol">${sh.volumeDb.mixed ? 'Mixed' : `${(sh.volumeDb.value ?? 0).toFixed(1)} dB`}</span></div>
+            <input type="range" id="insp-m-vol" min="-40" max="12" step="0.5" value="${sh.volumeDb.mixed ? 0 : (sh.volumeDb.value ?? 0)}">
+          </div>
+        </div>
+      </div>
+    `;
+    bindSlider('insp-m-scale', 'disp-m-scale', v => ctx.clips.forEach(c => { if (c.transform) c.transform.scale = v; }), v => `${v.toFixed(2)}x`);
+    bindSlider('insp-m-opac', 'disp-m-opac', v => ctx.clips.forEach(c => { if (c.transform) c.transform.opacity = v; }), v => `${Math.round(v * 100)}%`);
+    bindSlider('insp-m-vol', 'disp-m-vol', v => ctx.clips.forEach(c => { if (c.audio) c.audio.volumeDb = v; }), v => `${v.toFixed(1)} dB`);
+    bindAccordionToggles(container);
+    return;
   }
-  document.getElementById('insp-invert')?.addEventListener('change', e => { clip.colorEffects.invert = e.target.checked; renderProgramMonitor(); store.scheduleSave(250); });
-  document.getElementById('btn-reset-clip-grade')?.addEventListener('click', () => resetClipProperties(clip));
-  bindAccordionToggles(container);
+
+  const activeTab = uiState.activePropertiesTab;
+  const dec = clip.assetId ? store.runtimeState.decoders.get(clip.assetId) : null;
+
+  // TAB 1: PROPERTIES (Video / Title Transform, Compositing, Crop, Speed)
+  if (activeTab === 'properties') {
+    const t = clip.transform;
+    const crop = clip.crop || (clip.crop = { top: 0, bottom: 0, left: 0, right: 0 });
+    container.innerHTML = `
+      ${headerBanner}
+      ${dec?.missing ? `
+        <div style="margin: 8px; padding: 8px; background: rgba(227,111,120,0.14); border: 1px solid var(--error); border-radius: 4px; font-size: 11px;">
+          <strong style="color: var(--error);">Media Offline</strong>
+          <button class="action-btn-compact primary" id="insp-relink-clip-btn" style="margin-top: 6px; width: 100%; justify-content: center;">Relink Media...</button>
+        </div>
+      ` : ''}
+      ${clip.isTitle ? `
+        <div class="inspector-accordion">
+          <div class="accordion-header"><span>Title Typography</span><span class="icon icon-sm">expand_more</span></div>
+          <div class="accordion-content">
+            <div class="field-row"><div class="field-header"><span>Text</span></div><input type="text" id="insp-title-text" value="${clip.titleText || clip.name}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 4px 6px; border-radius: 3px; font-size: 11.5px;"></div>
+            <div class="field-row"><div class="field-header"><span>Font Size</span><span class="field-val" id="disp-t-size">${clip.titleFontSize || 92}px</span></div><input type="range" id="insp-title-size" min="24" max="220" step="2" value="${clip.titleFontSize || 92}"></div>
+            <div class="field-row"><div class="field-header"><span>Color</span><input type="color" id="insp-title-color" value="${clip.titleColor || '#ffffff'}" style="width: 32px; height: 20px; border: none; background: transparent; cursor: pointer;"></div></div>
+          </div>
+        </div>
+      ` : ''}
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Transform</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row"><div class="field-header"><span>Position X</span><span class="field-val" id="disp-posx">${t.positionX}px</span></div><input type="range" id="insp-posx" min="-960" max="960" step="2" value="${t.positionX}"></div>
+          <div class="field-row"><div class="field-header"><span>Position Y</span><span class="field-val" id="disp-posy">${t.positionY}px</span></div><input type="range" id="insp-posy" min="-540" max="540" step="2" value="${t.positionY}"></div>
+          <div class="field-row"><div class="field-header"><span>Scale</span><span class="field-val" id="disp-scale">${Math.round(t.scale * 100)}%</span></div><input type="range" id="insp-scale" min="0.1" max="3" step="0.02" value="${t.scale}"></div>
+          <div class="field-row"><div class="field-header"><span>Rotation</span><span class="field-val" id="disp-rot">${t.rotation}°</span></div><input type="range" id="insp-rot" min="-180" max="180" step="1" value="${t.rotation}"></div>
+        </div>
+      </div>
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Compositing & Blend Mode</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row"><div class="field-header"><span>Opacity</span><span class="field-val" id="disp-opac">${Math.round(t.opacity * 100)}%</span></div><input type="range" id="insp-opac" min="0" max="1" step="0.02" value="${t.opacity}"></div>
+          <div class="field-row">
+            <div class="field-header"><span>Blend Mode</span></div>
+            <select id="insp-blend" class="compact-select" style="padding: 4px;">
+              <option value="source-over" ${(clip.blendMode||'source-over')==='source-over'?'selected':''}>Normal</option>
+              <option value="multiply" ${clip.blendMode==='multiply'?'selected':''}>Multiply</option>
+              <option value="screen" ${clip.blendMode==='screen'?'selected':''}>Screen</option>
+              <option value="overlay" ${clip.blendMode==='overlay'?'selected':''}>Overlay</option>
+              <option value="lighter" ${clip.blendMode==='lighter'?'selected':''}>Add (Linear Dodge)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Speed & Duration</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row"><div class="field-header"><span>Speed</span><span class="field-val" id="disp-speed">${Math.round((clip.speed||1)*100)}%</span></div><input type="range" id="insp-speed" min="0.25" max="4" step="0.05" value="${clip.speed||1}"></div>
+          <label style="font-size: 11px; display: flex; gap: 6px; align-items: center;"><input type="checkbox" id="insp-reverse" ${clip.reverse ? 'checked' : ''}> Reverse Speed</label>
+        </div>
+      </div>
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Crop & Framing</span><span class="icon icon-sm">chevron_right</span></div>
+        <div class="accordion-content collapsed">
+          <div class="field-row"><div class="field-header"><span>Top</span><span class="field-val" id="disp-ct">${crop.top}%</span></div><input type="range" id="insp-ct" min="0" max="45" step="1" value="${crop.top}"></div>
+          <div class="field-row"><div class="field-header"><span>Bottom</span><span class="field-val" id="disp-cb">${crop.bottom}%</span></div><input type="range" id="insp-cb" min="0" max="45" step="1" value="${crop.bottom}"></div>
+          <div class="field-row"><div class="field-header"><span>Left</span><span class="field-val" id="disp-cl">${crop.left}%</span></div><input type="range" id="insp-cl" min="0" max="45" step="1" value="${crop.left}"></div>
+          <div class="field-row"><div class="field-header"><span>Right</span><span class="field-val" id="disp-cr">${crop.right}%</span></div><input type="range" id="insp-cr" min="0" max="45" step="1" value="${crop.right}"></div>
+        </div>
+      </div>
+    `;
+    document.getElementById('insp-relink-clip-btn')?.addEventListener('click', () => triggerRelinkForAsset(clip.assetId));
+    document.getElementById('insp-title-text')?.addEventListener('input', e => { clip.titleText = e.target.value; clip.name = `Title: ${e.target.value}`; renderProgramMonitor(); renderTimeline(); store.scheduleSave(300); });
+    bindSlider('insp-title-size', 'disp-t-size', v => { clip.titleFontSize = v; }, v => `${v}px`);
+    document.getElementById('insp-title-color')?.addEventListener('input', e => { clip.titleColor = e.target.value; renderProgramMonitor(); store.scheduleSave(300); });
+    bindSlider('insp-posx', 'disp-posx', v => { clip.transform.positionX = v; }, v => `${v}px`);
+    bindSlider('insp-posy', 'disp-posy', v => { clip.transform.positionY = v; }, v => `${v}px`);
+    bindSlider('insp-scale', 'disp-scale', v => { clip.transform.scale = v; }, v => `${Math.round(v * 100)}%`);
+    bindSlider('insp-rot', 'disp-rot', v => { clip.transform.rotation = v; }, v => `${v}°`);
+    bindSlider('insp-opac', 'disp-opac', v => { clip.transform.opacity = v; }, v => `${Math.round(v * 100)}%`);
+    document.getElementById('insp-blend')?.addEventListener('change', e => { clip.blendMode = e.target.value; renderProgramMonitor(); store.scheduleSave(250); });
+    bindSlider('insp-speed', 'disp-speed', v => { clip.speed = v; }, v => `${Math.round(v * 100)}%`);
+    document.getElementById('insp-reverse')?.addEventListener('change', e => { clip.reverse = e.target.checked; renderProgramMonitor(); store.scheduleSave(250); });
+    bindSlider('insp-ct', 'disp-ct', v => { crop.top = v; }, v => `${v}%`);
+    bindSlider('insp-cb', 'disp-cb', v => { crop.bottom = v; }, v => `${v}%`);
+    bindSlider('insp-cl', 'disp-cl', v => { crop.left = v; }, v => `${v}%`);
+    bindSlider('insp-cr', 'disp-cr', v => { crop.right = v; }, v => `${v}%`);
+    bindAccordionToggles(container);
+    return;
+  }
+
+  // TAB 2: AUDIO
+  if (activeTab === 'audio') {
+    const targetAudio = ctx.audioClip || clip;
+    const a = targetAudio.audio || (targetAudio.audio = { volumeDb: 0, pan: 0, fadeIn: 0, fadeOut: 0, channels: 'stereo' });
+    container.innerHTML = `
+      ${headerBanner}
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Volume & Balance · ${targetAudio.name}</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row"><div class="field-header"><span>Volume Gain</span><span class="field-val" id="disp-vol">${a.volumeDb.toFixed(1)} dB</span></div><input type="range" id="insp-vol" min="-40" max="12" step="0.5" value="${a.volumeDb}"></div>
+          <div class="field-row"><div class="field-header"><span>Stereo Pan / Balance</span><span class="field-val" id="disp-pan">${a.pan === 0 ? 'Center' : (a.pan < 0 ? `L ${Math.abs(a.pan)}` : `R ${a.pan}`)}</span></div><input type="range" id="insp-pan" min="-100" max="100" step="1" value="${a.pan}"></div>
+          <div class="field-row">
+            <div class="field-header"><span>Channel Configuration</span></div>
+            <select id="insp-ach" class="compact-select" style="padding: 4px;">
+              <option value="stereo" ${(a.channels||'stereo')==='stereo'?'selected':''}>Stereo (L + R)</option>
+              <option value="left" ${a.channels==='left'?'selected':''}>Dual Mono (Left)</option>
+              <option value="right" ${a.channels==='right'?'selected':''}>Dual Mono (Right)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Audio Fades</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row"><div class="field-header"><span>Fade In</span><span class="field-val" id="disp-fi">${(a.fadeIn||0).toFixed(1)}s</span></div><input type="range" id="insp-fi" min="0" max="5" step="0.1" value="${a.fadeIn||0}"></div>
+          <div class="field-row"><div class="field-header"><span>Fade Out</span><span class="field-val" id="disp-fo">${(a.fadeOut||0).toFixed(1)}s</span></div><input type="range" id="insp-fo" min="0" max="5" step="0.1" value="${a.fadeOut||0}"></div>
+          <button class="action-btn-compact" id="btn-open-audio-ws" style="margin-top: 4px; border-color: var(--border); justify-content: center;">Open Track Mixer & EQ Console →</button>
+        </div>
+      </div>
+    `;
+    bindSlider('insp-vol', 'disp-vol', v => { a.volumeDb = v; }, v => `${v.toFixed(1)} dB`);
+    bindSlider('insp-pan', 'disp-pan', v => { a.pan = v; }, v => v === 0 ? 'Center' : (v < 0 ? `L ${Math.abs(v)}` : `R ${v}`));
+    bindSlider('insp-fi', 'disp-fi', v => { a.fadeIn = v; }, v => `${v.toFixed(1)}s`);
+    bindSlider('insp-fo', 'disp-fo', v => { a.fadeOut = v; }, v => `${v.toFixed(1)}s`);
+    document.getElementById('insp-ach')?.addEventListener('change', e => { a.channels = e.target.value; store.scheduleSave(250); });
+    document.getElementById('btn-open-audio-ws')?.addEventListener('click', () => switchWorkspace('audio'));
+    bindAccordionToggles(container);
+    return;
+  }
+
+  // TAB 3: EFFECTS (Applied Effects Stack — Distinct from Effects Library!)
+  if (activeTab === 'effects') {
+    const fxList = ensureEffectsArray(clip);
+    container.innerHTML = `
+      ${headerBanner}
+      <div style="padding: 8px; display: flex; flex-direction: column; gap: 8px;">
+        <div style="display: flex; gap: 4px;">
+          <select id="sel-add-clip-fx" class="compact-select" style="flex: 1; padding: 4px;">
+            ${AVAILABLE_CLIP_EFFECTS.map(e => `<option value="${e.id}">${e.name}</option>`).join('')}
+          </select>
+          <button class="action-btn-compact primary" id="btn-add-clip-fx">+ Add</button>
+        </div>
+
+        ${clip.transitionIn ? `
+          <div class="applied-fx-card">
+            <div class="applied-fx-header">
+              <span>Transition: ${clip.transitionIn.name}</span>
+              <button class="action-btn-compact danger" id="btn-remove-tr" style="padding: 1px 5px;">✕</button>
+            </div>
+            <div style="padding: 8px;">
+              <div class="field-row"><div class="field-header"><span>Duration</span><span class="field-val" id="disp-tr-dur">${clip.transitionIn.duration.toFixed(2)}s</span></div><input type="range" id="insp-tr-dur" min="0.2" max="4" step="0.1" value="${clip.transitionIn.duration}"></div>
+            </div>
+          </div>
+        ` : ''}
+
+        ${fxList.length === 0 ? `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 14px 6px;">No effects applied to this clip yet. Add an effect above or browse Transitions in Effects Library.</div>` : fxList.map((fx, i) => `
+          <div class="applied-fx-card" data-fx-uid="${fx.uid}">
+            <div class="applied-fx-header">
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                <input type="checkbox" class="chk-fx-enable" ${fx.enabled ? 'checked' : ''}> ${fx.name}
+              </label>
+              <div style="display: flex; gap: 2px;">
+                ${i > 0 ? `<button class="action-btn-compact btn-fx-up" style="padding: 1px 4px;">↑</button>` : ''}
+                ${i < fxList.length - 1 ? `<button class="action-btn-compact btn-fx-down" style="padding: 1px 4px;">↓</button>` : ''}
+                <button class="action-btn-compact danger btn-fx-del" style="padding: 1px 5px;">✕</button>
+              </div>
+            </div>
+            <div style="padding: 8px; display: flex; flex-direction: column; gap: 6px; ${fx.enabled ? '' : 'opacity: 0.45;'}">
+              ${Object.entries(fx.params).map(([pKey, pVal]) => `
+                <div class="field-row">
+                  <div class="field-header"><span>${pKey}</span><span class="field-val" data-fx-val="${pKey}">${Number(pVal).toFixed(2)}</span></div>
+                  <input type="range" class="sl-fx-param" data-fx-param="${pKey}" min="${pKey === 'radiusPx' ? 0 : (pKey === 'exposure' ? -2 : 0)}" max="${pKey === 'radiusPx' ? 24 : (pKey === 'temperature' ? 100 : 2)}" step="0.05" value="${pVal}">
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    document.getElementById('btn-add-clip-fx')?.addEventListener('click', () => {
+      const fxId = document.getElementById('sel-add-clip-fx')?.value;
+      if (fxId) executeCommand('Add Clip Effect', () => { addClipEffect(clip, fxId); });
+    });
+    if (clip.transitionIn) {
+      bindSlider('insp-tr-dur', 'disp-tr-dur', v => { clip.transitionIn.duration = v; }, v => `${v.toFixed(2)}s`);
+      document.getElementById('btn-remove-tr')?.addEventListener('click', () => executeCommand('Remove Transition', () => { clip.transitionIn = null; }));
+    }
+    container.querySelectorAll('.applied-fx-card[data-fx-uid]').forEach(card => {
+      const uid = card.dataset.fxUid;
+      const fx = fxList.find(x => x.uid === uid);
+      if (!fx) return;
+      card.querySelector('.chk-fx-enable')?.addEventListener('change', () => executeCommand('Toggle Effect', () => toggleClipEffect(clip, uid)));
+      card.querySelector('.btn-fx-up')?.addEventListener('click', () => executeCommand('Reorder Effect', () => moveClipEffect(clip, uid, -1)));
+      card.querySelector('.btn-fx-down')?.addEventListener('click', () => executeCommand('Reorder Effect', () => moveClipEffect(clip, uid, 1)));
+      card.querySelector('.btn-fx-del')?.addEventListener('click', () => executeCommand('Remove Effect', () => removeClipEffect(clip, uid)));
+      card.querySelectorAll('.sl-fx-param').forEach(sl => {
+        sl.addEventListener('input', e => {
+          const v = parseFloat(e.target.value);
+          fx.params[sl.dataset.fxParam] = v;
+          const lbl = card.querySelector(`[data-fx-val="${sl.dataset.fxParam}"]`);
+          if (lbl) lbl.textContent = v.toFixed(2);
+          renderProgramMonitor();
+          store.scheduleSave(250);
+        });
+      });
+    });
+    return;
+  }
+
+  // TAB 4: MOTION (Transform Keyframes, Easing & Graph Editor Access)
+  if (activeTab === 'motion') {
+    const localT = Math.max(0, store.sessionState.playheadTime - clip.timelineStart);
+    const kfProps = [
+      { key: 'positionX', label: 'Position X', cur: clip.transform.positionX },
+      { key: 'positionY', label: 'Position Y', cur: clip.transform.positionY },
+      { key: 'scale',     label: 'Scale',      cur: clip.transform.scale },
+      { key: 'rotation',  label: 'Rotation',   cur: clip.transform.rotation },
+      { key: 'opacity',   label: 'Opacity',    cur: clip.transform.opacity },
+    ];
+    container.innerHTML = `
+      ${headerBanner}
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Keyframes at ${formatTimecode(localT, seq.fps)}</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row">
+            <div class="field-header"><span>Default Interpolation</span></div>
+            <select id="insp-kf-ease" class="compact-select" style="padding: 4px;">
+              <option value="smooth">Easy Ease (Smooth)</option>
+              <option value="linear">Linear</option>
+              <option value="ease-in">Ease In</option>
+              <option value="ease-out">Ease Out</option>
+            </select>
+          </div>
+          ${kfProps.map(p => {
+            const list = clip.keyframes?.[p.key] || [];
+            const hasHere = list.some(k => Math.abs(k.time - localT) < 0.06);
+            return `
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid var(--border-divider);">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                  <button class="kf-stopwatch-btn ${hasHere ? 'active' : ''}" data-kf-prop="${p.key}" title="Toggle Keyframe at Playhead"><span class="icon icon-sm">timer</span></button>
+                  <span style="font-size: 11.5px;">${p.label}</span>
+                </div>
+                <span style="font-family: monospace; font-size: 10.5px; color: var(--text-secondary);">${list.length} kf</span>
+              </div>
+            `;
+          }).join('')}
+          <button class="action-btn-compact primary" id="btn-open-graph-from-motion" style="margin-top: 6px; justify-content: center;">
+            <span class="icon icon-sm">show_chart</span> Open Graph Editor
+          </button>
+        </div>
+      </div>
+    `;
+    container.querySelectorAll('[data-kf-prop]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prop = btn.dataset.kfProp;
+        const ease = document.getElementById('insp-kf-ease')?.value || 'smooth';
+        executeCommand(`Toggle Keyframe: ${prop}`, () => {
+          toggleKeyframeAtLocalTime(clip, prop, localT, clip.transform[prop], ease);
+        });
+      });
+    });
+    document.getElementById('btn-open-graph-from-motion')?.addEventListener('click', () => {
+      const drawer = document.getElementById('motion-graph-drawer');
+      if (drawer) { drawer.style.display = 'block'; drawMotionGraphCanvas(); }
+    });
+    return;
+  }
+
+  // TAB 5: METADATA
+  if (activeTab === 'metadata') {
+    const asset = clip.assetId ? store.projectState.assets[clip.assetId] : null;
+    container.innerHTML = `
+      ${headerBanner}
+      <div class="inspector-accordion">
+        <div class="accordion-header"><span>Source Media Metadata</span><span class="icon icon-sm">expand_more</span></div>
+        <div class="accordion-content">
+          <div class="field-row"><div class="field-header"><span>Original File</span><span class="field-val">${asset ? asset.name : clip.name}</span></div></div>
+          <div class="field-row"><div class="field-header"><span>Availability</span><span class="field-val" style="color: ${dec?.missing ? 'var(--error)' : 'var(--success)'};">${dec?.missing ? 'MEDIA OFFLINE' : 'Online'}</span></div></div>
+          <div class="field-row"><div class="field-header"><span>Resolution</span><span class="field-val">${asset ? `${asset.width} × ${asset.height}` : `${seq.width} × ${seq.height}`}</span></div></div>
+          <div class="field-row"><div class="field-header"><span>Source Duration</span><span class="field-val">${formatTimecode(asset ? asset.duration : clip.timelineDuration, seq.fps)}</span></div></div>
+          <div class="field-row"><div class="field-header"><span>MIME / Codec</span><span class="field-val">${asset ? asset.type : 'Procedural Title'}</span></div></div>
+          <div class="field-row"><div class="field-header"><span>File Size</span><span class="field-val">${asset ? `${(asset.size / (1024 * 1024)).toFixed(2)} MB` : '--'}</span></div></div>
+          ${dec?.missing ? `<button class="action-btn-compact primary" id="meta-relink-btn">Relink Media...</button>` : ''}
+        </div>
+      </div>
+    `;
+    document.getElementById('meta-relink-btn')?.addEventListener('click', () => triggerRelinkForAsset(clip.assetId));
+  }
+}
+
+// --- DEDICATED UTILITY PANELS: HISTORY & MARKERS ---
+function renderHistoryPanel() {
+  const body = document.getElementById('history-panel-body');
+  if (!body) return;
+  if (uiState.undoStack.length === 0 && uiState.redoStack.length === 0) {
+    body.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 16px;">No edit history yet. Actions will appear here.</div>`;
+    return;
+  }
+  body.innerHTML = `
+    <div style="display: flex; gap: 4px; margin-bottom: 8px;">
+      <button class="action-btn-compact" id="hist-undo-btn" style="flex:1; justify-content:center; border-color: var(--border);">Undo (${uiState.undoStack.length})</button>
+      <button class="action-btn-compact" id="hist-redo-btn" style="flex:1; justify-content:center; border-color: var(--border);">Redo (${uiState.redoStack.length})</button>
+    </div>
+    ${[...uiState.undoStack].reverse().map((item, idx) => `
+      <div style="padding: 5px 8px; border-bottom: 1px solid var(--border-divider); font-size: 11px; color: ${idx === 0 ? 'var(--accent)' : 'var(--text-primary)'};">
+        ${idx === 0 ? '● ' : ''}${item.description}
+      </div>
+    `).join('')}
+  `;
+  document.getElementById('hist-undo-btn')?.addEventListener('click', undo);
+  document.getElementById('hist-redo-btn')?.addEventListener('click', redo);
+}
+
+function renderMarkersPanel() {
+  const body = document.getElementById('markers-panel-body');
+  if (!body) return;
+  const seq = getActiveSequence();
+  if (!seq.markers || seq.markers.length === 0) {
+    body.innerHTML = `<div style="font-size: 11px; color: var(--text-muted); text-align: center; padding: 16px;">No markers in sequence. Press <strong>M</strong> or click <strong>+</strong> to add a marker.</div>`;
+    return;
+  }
+  body.innerHTML = seq.markers.map(m => `
+    <div class="fx-item-card" data-jump-marker="${m.id}">
+      <div>
+        <div style="font-weight: 600; color: var(--warning);">${m.label}</div>
+        <div style="font-size: 10px; font-family: monospace; color: var(--text-secondary);">${formatTimecode(m.time, seq.fps)}</div>
+      </div>
+      <button class="action-btn-compact danger btn-del-marker" data-del-marker="${m.id}" style="padding: 1px 5px;">✕</button>
+    </div>
+  `).join('');
+  body.querySelectorAll('[data-jump-marker]').forEach(el => el.addEventListener('click', (e) => {
+    if (e.target.dataset.delMarker) return;
+    const m = seq.markers.find(x => x.id === el.dataset.jumpMarker);
+    if (m) seekSequence(m.time);
+  }));
+  body.querySelectorAll('.btn-del-marker').forEach(b => b.addEventListener('click', (e) => {
+    e.stopPropagation();
+    executeCommand('Delete Marker', () => { seq.markers = seq.markers.filter(x => x.id !== b.dataset.delMarker); });
+  }));
+}
+
+// --- DEDICATED MODALS: PROJECT SETTINGS & SEQUENCE SETTINGS ---
+function openProjectSettingsModal() {
+  const modal = document.getElementById('modal-project-settings');
+  const body = document.getElementById('project-settings-body');
+  if (!modal || !body) return;
+  const p = store.projectState;
+  body.innerHTML = `
+    <div class="field-row"><div class="field-header"><span>Project Name</span></div><input type="text" id="ps-title" value="${p.title}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 6px; border-radius: 3px;"></div>
+    <div class="field-row"><div class="field-header"><span>Imported Assets</span><span class="field-val">${Object.keys(p.assets).length}</span></div></div>
+    <div class="field-row"><div class="field-header"><span>Sequences</span><span class="field-val">${Object.keys(p.sequences).length}</span></div></div>
+    <div class="field-row"><div class="field-header"><span>Color Management</span><span class="field-val" style="color: var(--success);">Rec.709 Linear 32-bit</span></div></div>
+    <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px;">
+      <button class="action-btn-compact primary" id="btn-save-proj-settings">Save Project Settings</button>
+    </div>
+  `;
+  document.getElementById('btn-save-proj-settings')?.addEventListener('click', () => {
+    const val = document.getElementById('ps-title')?.value?.trim();
+    if (val) p.title = val;
+    store.flushNow();
+    renderAll();
+    modal.classList.remove('active');
+  });
+  modal.classList.add('active');
+}
+
+function openSequenceSettingsModal() {
+  const modal = document.getElementById('modal-sequence-settings');
+  const body = document.getElementById('sequence-settings-body');
+  if (!modal || !body) return;
+  const seq = getActiveSequence();
+  body.innerHTML = `
+    <div class="field-row"><div class="field-header"><span>Sequence Name</span></div><input type="text" id="ss-name" value="${seq.name}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 6px; border-radius: 3px;"></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+      <div class="field-row"><div class="field-header"><span>Width (px)</span></div><input type="number" id="ss-w" value="${seq.width}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 3px;"></div>
+      <div class="field-row"><div class="field-header"><span>Height (px)</span></div><input type="number" id="ss-h" value="${seq.height}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 3px;"></div>
+      <div class="field-row"><div class="field-header"><span>Frame Rate</span></div>
+        <select id="ss-fps" class="compact-select" style="padding: 5px;">
+          ${[23.976, 24, 25, 29.97, 30, 60].map(f => `<option value="${f}" ${seq.fps === f ? 'selected' : ''}>${f} fps</option>`).join('')}
+        </select>
+      </div>
+      <div class="field-row"><div class="field-header"><span>Duration (sec)</span></div><input type="number" id="ss-dur" value="${seq.duration}" min="10" max="3600" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px; border-radius: 3px;"></div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 6px; margin-top: 10px;">
+      <button class="action-btn-compact primary" id="btn-save-seq-settings">Apply Sequence Settings</button>
+    </div>
+  `;
+  document.getElementById('btn-save-seq-settings')?.addEventListener('click', () => {
+    executeCommand('Update Sequence Settings', () => {
+      seq.name = document.getElementById('ss-name')?.value?.trim() || seq.name;
+      seq.width = Math.max(320, parseInt(document.getElementById('ss-w')?.value, 10) || 1920);
+      seq.height = Math.max(240, parseInt(document.getElementById('ss-h')?.value, 10) || 1080);
+      seq.fps = parseFloat(document.getElementById('ss-fps')?.value) || 24;
+      seq.duration = Math.max(10, parseInt(document.getElementById('ss-dur')?.value, 10) || 60);
+    });
+    modal.classList.remove('active');
+  });
+  modal.classList.add('active');
 }
 
 function bindAccordionToggles(container) {
@@ -3052,6 +3570,7 @@ function initMenus() {
   document.getElementById('m-edit-delete')?.addEventListener('click', deleteActiveClip);
   document.getElementById('m-edit-shortcuts')?.addEventListener('click', openShortcutsModal);
 
+  document.getElementById('m-proj-settings')?.addEventListener('click', openProjectSettingsModal);
   document.getElementById('m-proj-rename')?.addEventListener('click', () => { const t = prompt('Rename Project:', store.projectState.title); if (t) { store.projectState.title = t; store.flushNow(); renderAll(); } });
   document.getElementById('m-proj-newbin')?.addEventListener('click', createNewBin);
   document.getElementById('m-proj-media')?.addEventListener('click', () => switchWorkspace('media'));
@@ -3084,6 +3603,7 @@ function initMenus() {
       store.sessionState.activeSequenceId = id;
     });
   });
+  document.getElementById('m-seq-settings')?.addEventListener('click', openSequenceSettingsModal);
   document.getElementById('m-seq-render-preview')?.addEventListener('click', renderProgramMonitor);
 
   document.getElementById('m-time-snap')?.addEventListener('click', toggleSnapping);
@@ -3113,9 +3633,57 @@ function initMenus() {
     else document.exitFullscreen?.().catch(() => {});
   });
 
-  // Window: Panel Toggles, Save Workspace, Reset Current Workspace, Reset All Workspaces
+  // Window: Panel Toggles, Layout Presets, Save Workspace, Reset Current Workspace, Reset All Workspaces
   document.querySelectorAll('[data-panel-toggle]').forEach(entry => {
-    entry.addEventListener('click', () => layoutManager.togglePanelVisibility(entry.dataset.panelToggle));
+    entry.addEventListener('click', () => {
+      const pid = entry.dataset.panelToggle;
+      layoutManager.togglePanelVisibility(pid);
+      if (pid === 'panel-inspector' && layoutManager.isPanelVisible(pid)) renderInspector();
+      if (pid === 'panel-history' && layoutManager.isPanelVisible(pid)) renderHistoryPanel();
+      if (pid === 'panel-markers' && layoutManager.isPanelVisible(pid)) renderMarkersPanel();
+    });
+  });
+
+  document.getElementById('win-preset-default')?.addEventListener('click', () => {
+    store.workspaceState.activeWorkspace = 'edit';
+    layoutManager.openPanel('panel-project');
+    layoutManager.openPanel('monitors-pane');
+    layoutManager.openPanel('panel-inspector');
+    layoutManager.openPanel('panel-timeline');
+    layoutManager.closePanel('panel-history');
+    layoutManager.closePanel('panel-markers');
+    store.sessionState.monitorMode = 'single';
+    applyWorkspaceUI('edit');
+    updateMonitorsLayoutUI();
+    renderAll();
+  });
+
+  document.getElementById('win-preset-compact')?.addEventListener('click', () => {
+    store.workspaceState.activeWorkspace = 'edit';
+    layoutManager.openPanel('panel-project');
+    layoutManager.openPanel('monitors-pane');
+    layoutManager.openPanel('panel-timeline');
+    layoutManager.closePanel('panel-inspector');
+    layoutManager.closePanel('panel-history');
+    layoutManager.closePanel('panel-markers');
+    store.sessionState.monitorMode = 'single';
+    applyWorkspaceUI('edit');
+    updateMonitorsLayoutUI();
+    renderAll();
+  });
+
+  document.getElementById('win-preset-dual')?.addEventListener('click', () => {
+    store.workspaceState.activeWorkspace = 'edit';
+    layoutManager.openPanel('panel-project');
+    layoutManager.openPanel('monitors-pane');
+    layoutManager.openPanel('panel-timeline');
+    layoutManager.closePanel('panel-inspector');
+    layoutManager.closePanel('panel-history');
+    layoutManager.closePanel('panel-markers');
+    store.sessionState.monitorMode = 'split';
+    applyWorkspaceUI('edit');
+    updateMonitorsLayoutUI();
+    renderAll();
   });
 
   document.getElementById('win-save-ws')?.addEventListener('click', () => {
@@ -3140,7 +3708,7 @@ function initMenus() {
   document.getElementById('m-help-shortcuts')?.addEventListener('click', openShortcutsModal);
   document.getElementById('m-help-diagnostics')?.addEventListener('click', openDiagnosticsModal);
   document.getElementById('btn-open-diagnostics')?.addEventListener('click', openDiagnosticsModal);
-  document.getElementById('m-help-about')?.addEventListener('click', () => alert('FRAMEFLOW Studio v6.0.0\n4-Layer Persistent NLE Architecture'));
+  document.getElementById('m-help-about')?.addEventListener('click', () => alert('FRAMEFLOW Studio v8.0.0\nContextual 5-Tab Properties, Linked V+A Editing, Deliver Studio & 4-Layer Persistence'));
 }
 
 function renderCustomWorkspacesMenu() {
@@ -3184,6 +3752,12 @@ function initModals() {
   });
   document.getElementById('btn-close-diagnostics-modal')?.addEventListener('click', () => {
     document.getElementById('modal-diagnostics')?.classList.remove('active');
+  });
+  document.getElementById('btn-close-proj-settings')?.addEventListener('click', () => {
+    document.getElementById('modal-project-settings')?.classList.remove('active');
+  });
+  document.getElementById('btn-close-seq-settings')?.addEventListener('click', () => {
+    document.getElementById('modal-sequence-settings')?.classList.remove('active');
   });
   document.getElementById('btn-reset-shortcuts')?.addEventListener('click', () => {
     activeShortcuts = structuredClone(DEFAULT_SHORTCUTS);
@@ -3385,6 +3959,8 @@ function renderAll() {
   renderTimeline();
   renderProgramMonitor();
   renderInspector();
+  renderHistoryPanel();
+  renderMarkersPanel();
   if (store.workspaceState.activeWorkspace === 'color') renderColorClipsGallery();
   if (store.workspaceState.activeWorkspace === 'audio') renderAudioConsole();
   if (store.workspaceState.activeWorkspace === 'deliver') { renderDeliverSettings(); renderDeliverQueue(); }

@@ -1545,3 +1545,106 @@ input[type="range"]::-webkit-slider-thumb {
   z-index: 4000;
 }
 [data-tooltip]:hover::after { opacity: 1; }
+
+/* ----------------------------------------------------
+   10. Contextual Properties Panel (5 Tabs, Pin, Keyframes, Effects Stack)
+---------------------------------------------------- */
+.props-tabs-bar {
+  display: flex;
+  align-items: center;
+  background: #141A24;
+  border-bottom: 1px solid var(--border);
+  padding: 0 4px;
+  gap: 2px;
+  flex-shrink: 0;
+  overflow-x: auto;
+}
+.props-tab {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.12s, border-color 0.12s;
+}
+.props-tab:hover { color: #fff; }
+.props-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.props-context-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #121720;
+  border-bottom: 1px solid var(--border-divider);
+  font-size: 11px;
+  gap: 6px;
+}
+
+.pin-active-btn {
+  color: var(--accent) !important;
+  background: rgba(75, 141, 255, 0.18) !important;
+}
+
+.kf-stopwatch-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 1px 3px;
+  border-radius: 2px;
+  display: inline-flex;
+  align-items: center;
+}
+.kf-stopwatch-btn:hover { color: #fff; }
+.kf-stopwatch-btn.active { color: var(--accent); }
+
+.mixed-val-badge {
+  font-size: 10px;
+  color: var(--warning);
+  font-style: italic;
+  font-family: ui-monospace, monospace;
+}
+
+.applied-fx-card {
+  background: #131822;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 6px;
+  overflow: hidden;
+}
+.applied-fx-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: #1A212E;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.panel-footer-strip {
+  height: 24px;
+  background: #131821;
+  border-top: 1px solid var(--border-divider);
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.header-toggle-active {
+  background: rgba(75, 141, 255, 0.18) !important;
+  color: var(--accent) !important;
+  border-color: rgba(75, 141, 255, 0.45) !important;
+}

@@ -51,6 +51,7 @@
         <div class="menu-item">
           <div class="menu-label">Project</div>
           <div class="menu-dropdown">
+            <div class="menu-entry" id="m-proj-settings"><span>Project Settings...</span></div>
             <div class="menu-entry" id="m-proj-rename"><span>Rename Project...</span></div>
             <div class="menu-entry" id="m-proj-newbin"><span>New Bin...</span><span class="menu-shortcut">Ctrl+B</span></div>
             <div class="menu-entry" id="m-proj-media"><span>Open Media Workspace</span></div>
@@ -78,6 +79,7 @@
         <div class="menu-item">
           <div class="menu-label">Sequence</div>
           <div class="menu-dropdown">
+            <div class="menu-entry" id="m-seq-settings"><span>Sequence Settings...</span></div>
             <div class="menu-entry" id="m-seq-new"><span>New Sequence...</span></div>
             <div class="menu-entry" id="m-seq-duplicate"><span>Duplicate Sequence</span></div>
             <div class="menu-entry" id="m-seq-render-preview"><span>Render Sequence Preview</span></div>
@@ -148,11 +150,18 @@
           <div class="menu-label">Window</div>
           <div class="menu-dropdown" id="window-menu-dropdown">
             <div class="menu-section-label">PANELS</div>
+            <div class="menu-entry" data-panel-toggle="panel-inspector"><span id="chk-panel-inspector">✓ Properties</span></div>
             <div class="menu-entry" data-panel-toggle="panel-project"><span id="chk-panel-project">✓ Project / Media Browser</span></div>
-            <div class="menu-entry" data-panel-toggle="panel-effects"><span id="chk-panel-effects">  Effects & Transitions</span></div>
+            <div class="menu-entry" data-panel-toggle="panel-effects"><span id="chk-panel-effects">  Effects Library</span></div>
             <div class="menu-entry" data-panel-toggle="monitors-pane"><span id="chk-monitors-pane">✓ Source / Program Monitors</span></div>
-            <div class="menu-entry" data-panel-toggle="panel-inspector"><span id="chk-panel-inspector">✓ Contextual Inspector</span></div>
             <div class="menu-entry" data-panel-toggle="panel-timeline"><span id="chk-panel-timeline">✓ Multitrack Timeline</span></div>
+            <div class="menu-entry" data-panel-toggle="panel-history"><span id="chk-panel-history">  History</span></div>
+            <div class="menu-entry" data-panel-toggle="panel-markers"><span id="chk-panel-markers">  Markers</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-section-label">LAYOUT PRESETS</div>
+            <div class="menu-entry" id="win-preset-default"><span>Default Editing</span></div>
+            <div class="menu-entry" id="win-preset-compact"><span>Compact Editing (Hide Properties)</span></div>
+            <div class="menu-entry" id="win-preset-dual"><span>Dual Monitor (Split View)</span></div>
             <div class="menu-sep"></div>
             <div class="menu-section-label">WORKSPACES</div>
             <div class="menu-entry" id="win-save-ws"><span>Save Workspace Layout...</span></div>
@@ -185,7 +194,7 @@
       <button class="ws-tab" data-ws="deliver">Deliver</button>
     </div>
 
-    <!-- Right: Project Info, Undo/Redo & Deliver Shortcut -->
+    <!-- Right: Project Info, Undo/Redo, Properties Toggle & Deliver -->
     <div class="header-right-group">
       <div class="project-title-badge">
         <span class="project-name" id="project-title-disp">Untitled Project</span>
@@ -194,6 +203,9 @@
       <div class="header-divider"></div>
       <button class="action-btn-compact" id="btn-undo" data-tooltip="Undo (Ctrl+Z)"><span class="icon icon-sm">undo</span></button>
       <button class="action-btn-compact" id="btn-redo" data-tooltip="Redo (Ctrl+Shift+Z)"><span class="icon icon-sm">redo</span></button>
+      <button class="action-btn-compact header-toggle-active" id="btn-toggle-properties" data-tooltip="Show / Hide Properties Panel">
+        <span class="icon icon-sm">tune</span> Properties
+      </button>
       <button class="action-btn-compact primary" id="btn-goto-deliver" data-tooltip="Open Deliver Workspace (Ctrl+M)">
         <span class="icon icon-sm">ios_share</span> Export
       </button>
@@ -238,6 +250,10 @@
             <div style="font-size: 10.5px; color: var(--text-muted);">Drop video, audio, images or click</div>
           </div>
           <div id="assets-list" style="flex: 1; overflow-y: auto; padding: 0 6px 6px;"></div>
+        </div>
+        <div class="panel-footer-strip" id="project-panel-footer">
+          <span>0 assets</span>
+          <span>Local-First</span>
         </div>
       </section>
 
@@ -429,18 +445,46 @@
       <!-- Splitter Right -->
       <div class="splitter-h" id="splitter-right"></div>
 
-      <!-- PANEL E: Contextual Inspector / Scopes / Metadata (Edit, Media, Motion, Color) -->
+      <!-- PANEL E: Context-Aware Optional Properties Panel (5 Tabs, Pin, Float, Close) -->
       <section class="panel col-right-slot" id="panel-inspector">
         <div class="panel-header">
           <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm" id="inspector-header-icon">tune</span> <span id="inspector-header-title">Inspector</span></button>
+            <button class="panel-tab active"><span class="icon icon-sm" id="inspector-header-icon">tune</span> <span id="inspector-header-title">Properties</span></button>
           </div>
           <div class="panel-actions">
+            <button class="panel-action-btn" id="btn-pin-properties" data-tooltip="Pin Inspected Object"><span class="icon icon-sm">push_pin</span></button>
             <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
             <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
+            <button class="panel-action-btn btn-close-panel" data-close-panel="panel-inspector" data-tooltip="Close Properties"><span class="icon icon-sm">close</span></button>
           </div>
         </div>
+        <div class="props-tabs-bar" id="properties-tabs-bar" style="display: none;"></div>
         <div class="panel-body" id="inspector-content"></div>
+      </section>
+
+      <!-- OPTIONAL PANEL: Command History -->
+      <section class="panel col-right-slot hidden-panel" id="panel-history">
+        <div class="panel-header">
+          <div class="panel-tabs"><button class="panel-tab active"><span class="icon icon-sm">history</span> History</button></div>
+          <div class="panel-actions">
+            <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
+            <button class="panel-action-btn btn-close-panel" data-close-panel="panel-history" data-tooltip="Close History"><span class="icon icon-sm">close</span></button>
+          </div>
+        </div>
+        <div class="panel-body" id="history-panel-body" style="padding: 8px;"></div>
+      </section>
+
+      <!-- OPTIONAL PANEL: Sequence Markers -->
+      <section class="panel col-right-slot hidden-panel" id="panel-markers">
+        <div class="panel-header">
+          <div class="panel-tabs"><button class="panel-tab active"><span class="icon icon-sm">bookmark</span> Markers</button></div>
+          <div class="panel-actions">
+            <button class="panel-action-btn" id="btn-markers-panel-add" data-tooltip="Add Marker (M)"><span class="icon icon-sm">add</span></button>
+            <button class="panel-action-btn btn-undock-panel" data-tooltip="Float / Dock Panel"><span class="icon icon-sm">open_in_new</span></button>
+            <button class="panel-action-btn btn-close-panel" data-close-panel="panel-markers" data-tooltip="Close Markers"><span class="icon icon-sm">close</span></button>
+          </div>
+        </div>
+        <div class="panel-body" id="markers-panel-body" style="padding: 8px;"></div>
       </section>
 
       <!-- PANEL F: Deliver Export Settings Panel (Deliver Workspace Right-Top) -->
@@ -708,6 +752,34 @@
         <button class="panel-action-btn" id="btn-close-diagnostics-modal" style="font-size: 18px;">&times;</button>
       </div>
       <div class="modal-body" id="diagnostics-modal-body"></div>
+    </div>
+  </div>
+
+  <!-- 7. Project Settings Modal (Project > Project Settings) -->
+  <div class="modal-overlay" id="modal-project-settings">
+    <div class="modal-card" style="width: 460px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="icon" style="color: var(--accent);">settings</span>
+          <span>Project Settings</span>
+        </div>
+        <button class="panel-action-btn" id="btn-close-proj-settings" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body" id="project-settings-body"></div>
+    </div>
+  </div>
+
+  <!-- 8. Sequence Settings Modal (Sequence > Sequence Settings) -->
+  <div class="modal-overlay" id="modal-sequence-settings">
+    <div class="modal-card" style="width: 480px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span class="icon" style="color: var(--accent);">tune</span>
+          <span>Sequence Settings</span>
+        </div>
+        <button class="panel-action-btn" id="btn-close-seq-settings" style="font-size: 18px;">&times;</button>
+      </div>
+      <div class="modal-body" id="sequence-settings-body"></div>
     </div>
   </div>
 
