@@ -13,8 +13,8 @@ All versions of the project are maintained within this single repository:
 - **[Version 1 (V1)](https://github.com/ayushrokad/Video-Editor/tree/v1):** Web Platform Foundation, Browser Diagnostics, and Competitor Intelligence Library.
 - **[Version 2 (V2)](https://github.com/ayushrokad/Video-Editor/tree/v2):** Connected Non-Linear Editing Platform with Dynamic Panels, Real Media Bins, Multitrack Timeline, Trimming/Splitting, Contextual Inspector, and IndexedDB Persistence.
 - **[Version 3 (V3)](https://github.com/ayushrokad/Video-Editor/tree/v3):** Professional UI, Four-Zone Timeline, Standardized Google Material Symbols Rounded, Scoped Keyboard System, Visual Shortcuts Customizer Modal, Six Specialist Workspaces, Stereo VU Meter, and Export Queue.
-- **[Version 4 (V4 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v4):** Professional Interface Redesign & Adaptive Workspace System: Streamlined 34px Unified Chrome, Tabbed/Split Monitor Group (`Source` | `Program`), Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-and-Drop to Track Lanes, Progressive Disclosure Accordion Inspector, and Quiet Charcoal Design System.
-- **Version 5 (V5 - Planned):** Web Audio Multichannel DSP Routing & Mixing Console, WebGPU Real-Time Transition Shaders, and Offline Video Export Engine.
+- **[Version 4 (V4)](https://github.com/ayushrokad/Video-Editor/tree/v4):** Professional Interface Redesign & Adaptive Workspace System: Streamlined 34px Unified Chrome, Tabbed/Split Monitor Group (`Source` | `Program`), Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-and-Drop to Track Lanes, Progressive Disclosure Accordion Inspector, and Quiet Charcoal Design System.
+- **[Version 5 (V5 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v5):** Six Distinct Specialist Workspaces (`Media`, `Edit`, `Motion`, `Color`, `Audio`, `Deliver`), Reorganized 13-Menu Hierarchy, `align_horizontal_center` Snapping with Snap Guide & Alt-Override, Timeline Context Menus, Floating Panels & Saved Workspaces, Web Audio Multichannel DSP Mixer & Bus Routing (`Dialogue`/`Music`/`SFX`/`Ambience` + 3-Band EQ + LUFS), 10-Category Transition Engine with Honest GPU Probing, and Deliver Workspace Offline Render Queue.
 - See [VERSIONS.md](VERSIONS.md) for the complete version changelog and branch guide.
 
 ### Key Architectural Pillars
@@ -66,8 +66,8 @@ FRAMEFLOW/
 - **M1 (Completed in V2):** Professional Dockable Editing Interface, Dynamic Resizable Panels, and Strict 1920x1080 Viewport.
 - **M2 (Completed in V2):** Connected NLE Engine, Media Bins, Dual Monitors, Trimming Timeline, Inspector, and IndexedDB Autosave.
 - **M3 (Completed in V3):** Unified Material Symbols Rounded, Four-Zone Timeline (12 tools), Scoped Keyboard System, Visual Shortcut Customizer Modal, 6 Specialist Workspaces, Stereo VU Meter, and Export Queue.
-- **M4 (Completed in V4 - Current):** Professional Interface Redesign & Adaptive Workspace System: Unified 34px Application Chrome, Tabbed/Split Monitor Group, Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-to-Timeline, Progressive Disclosure Accordion Inspector, and Refined Charcoal Tokens.
-- **M5 (Planned in V5):** Web Audio Multichannel DSP Routing, Track Mixing Console, and Parametric EQ.
+- **M4 (Completed in V4):** Professional Interface Redesign & Adaptive Workspace System: Unified 34px Application Chrome, Tabbed/Split Monitor Group, Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-to-Timeline, Progressive Disclosure Accordion Inspector, and Refined Charcoal Tokens.
+- **M5 (Completed in V5 - Current):** Six Distinct Specialist Workspaces, Reorganized 13-Menu Hierarchy, `align_horizontal_center` Snapping with Snap Guide & Context Menus, Web Audio Multichannel DSP Mixer & Buses, 10-Category Transition Shader Engine, Honest Runtime Diagnostics, and Deliver Offline Render Queue.
 - **M5:** WebCodecs Hardware Video Decoding & Multi-Stream JKL Transport.
 - **M6:** WebGPU Compositing, Blending Modes, and Real-Time Transition Shaders.
 - **M7:** Motion Graph Editor with Bezier Keyframe Interpolation.

@@ -11,8 +11,8 @@ This single repository maintains all versions of **FRAMEFLOW**, tracked via dedi
 | **V1 (M0)** | Released | [`v1`](https://github.com/ayushrokad/Video-Editor/tree/v1) | [`v1.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v1.0.0) | Web Platform Foundation, Browser Capability Diagnostics, Media Feasibility PoC, and Complete 5,000+ line Competitor Intelligence Research Library. |
 | **V2 (M1/M2)** | Released | [`v2`](https://github.com/ayushrokad/Video-Editor/tree/v2) | [`v2.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v2.0.0) | Connected Non-Linear Editing Platform: Dynamic Resizable Panel Manager, Real Media Bins, Source/Program Dual Monitors, Multitrack Timeline with Trimming/Splitting, Contextual Inspector, Command Undo/Redo, and IndexedDB Persistence. |
 | **V3 (M3)** | Released | [`v3`](https://github.com/ayushrokad/Video-Editor/tree/v3) | [`v3.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v3.0.0) | Professional UI, Timeline UX & Keyboard System: Standardized Google Material Symbols Rounded, 4-Zone Professional Timeline, Visual Keyboard Shortcuts Customizer Modal, 6 Specialist Workspaces, Master Stereo VU Meter, and Export Queue. |
-| **V4 (M4)** | **Current / Active** | [`v4`](https://github.com/ayushrokad/Video-Editor/tree/v4) | [`v4.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v4.0.0) | Professional Interface Redesign & Adaptive Workspace System: Unified 34px Application Chrome, Tabbed/Split Monitor Group (`Source` \| `Program`), Sleek Empty States, Timeline Display Settings Popover (Thumbnails, Waveforms, Compact Tracks), Direct Asset Drag-and-Drop onto Track Lanes, Progressive Disclosure Accordion Inspector, and Refined Charcoal Design Tokens. |
-| **V5 (M5)** | Planned | `v5` | `v5.0.0` | Web Audio Multichannel DSP Routing Console, WebGPU Real-Time Transition Shaders, and Hardware-Accelerated Offline Export Engine. |
+| **V4 (M4)** | Released | [`v4`](https://github.com/ayushrokad/Video-Editor/tree/v4) | [`v4.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v4.0.0) | Professional Interface Redesign & Adaptive Workspace System: Unified 34px Application Chrome, Tabbed/Split Monitor Group (`Source` \| `Program`), Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-and-Drop onto Track Lanes, Progressive Disclosure Accordion Inspector, and Refined Charcoal Design Tokens. |
+| **V5 (M5)** | **Current / Active** | [`v5`](https://github.com/ayushrokad/Video-Editor/tree/v5) | [`v5.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v5.0.0) | Six Distinct Specialist Workspaces (`Media`, `Edit`, `Motion`, `Color`, `Audio`, `Deliver`), Reorganized 13-Menu Hierarchy, `align_horizontal_center` Snapping with Snap Guide & Alt-Override, Timeline Context Menus, Floating Panels & Saved Workspaces, Web Audio Multichannel DSP Mixer & Bus Routing (`Dialogue`/`Music`/`SFX`/`Ambience` + 3-Band EQ + LUFS), 10-Category Transition Engine with Honest GPU Probing, and Deliver Workspace Offline Render Queue. |
 
 ---
 
@@ -38,6 +38,11 @@ To switch to **Version 4**:
 git checkout v4
 ```
 
+To switch to **Version 5**:
+```bash
+git checkout v5
+```
+
 To stay on the latest production release:
 ```bash
 git checkout main
@@ -46,6 +51,19 @@ git checkout main
 ---
 
 ## Detailed Version Changelog
+
+### Version 5.0.0 — Specialist Workspaces, Timeline Upgrade & Connected Engine Subsystems (Milestone M5)
+- **Six Genuinely Distinct Workspaces:**
+  - `Media`: Large Tabular Media Browser (Name, Type, Resolution, Duration, File Size, quick insert), Source Preview, and Clip Metadata Inspector.
+  - `Edit`: Compact Project Bins, Unified Tabbed/Split Source & Program Monitor, Contextual Accordion Inspector, and Full-Width Four-Zone Timeline.
+  - `Motion`: 10-Category Effects & Transitions Library, Composition Viewer with Safe Margins, Effect Controls, and Keyframe Graph Editor Drawer.
+  - `Color`: Sequence Shots & LUT Presets Gallery, Grading Viewer, Live Pixel-Sampled RGB Histogram Scope, and 4 Interactive Primary Color Wheels (Lift, Gamma, Gain, Offset).
+  - `Audio`: Full-Width Multitrack Audio Timeline above a Fairlight-Style Mixing Console with per-track channel strips, 4 Post Buses (`Dialogue`, `Music`, `SFX`, `Ambience`), Master Bus with Limiter, 3-Band Parametric EQ Rack, and Real-Time EBU R128 LUFS / True Peak Loudness Meter.
+  - `Deliver`: Output Preview Monitor, Comprehensive Export Settings + Live Browser Codec Capability Matrix, and Functional Render Queue with real downloadable output via Canvas `captureStream` + `MediaRecorder`.
+- **Snapping Upgrade & Independent Timeline Controls:** Replaced MAGNET text with `align_horizontal_center` icon, persisted snapping state, added vertical cyan Snap Guide line while dragging, and temporary `Alt`-key snap bypass. Grouped Timeline Toolbar into 4 sections (Editing Tools · Behaviour · Display · Navigation).
+- **Dynamic Right-Click Context Menus:** Contextual menus for Video Clips, Audio Clips, Track Headers (rename, color, lock, add/delete), Time Ruler (markers, Mark In/Out), and Empty Timeline.
+- **Reorganized 13-Menu Hierarchy & Floating Panels:** Full `File`, `Edit`, `Project`, `Clip`, `Sequence`, `Timeline`, `Graphics`, `Effects`, `Audio`, `Color`, `View`, `Window` (live panel checkmarks & custom saved workspaces), and `Help` (Runtime Engine Diagnostics modal).
+- **Honest Runtime Diagnostics:** Real probing of `navigator.gpu` (WebGPU vs WebGL2 vs Canvas 2D Fallback), `AudioContext` state/sample rate, measured RAF FPS, dropped frames, and export codec support.
 
 ### Version 4.0.0 — Professional Interface Redesign & Adaptive Workspace System (Milestone M4)
 - **Streamlined 34px Unified Application Header:** Consolidated Logo, 14-menu bar, Workspace Switcher, Project Title, Save badge, Undo/Redo, and Export into a compact single-bar layout to maximize editing vertical real estate.
