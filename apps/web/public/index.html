@@ -61,9 +61,15 @@
           <div class="menu-label">Clip</div>
           <div class="menu-dropdown">
             <div class="menu-entry" id="m-clip-insert"><span>Insert Source to Timeline</span><span class="menu-shortcut">,</span></div>
+            <div class="menu-entry" id="m-clip-overwrite"><span>Overwrite at Playhead</span><span class="menu-shortcut">.</span></div>
             <div class="menu-entry" id="m-clip-split"><span>Split Clip at Playhead</span><span class="menu-shortcut">Ctrl+K</span></div>
             <div class="menu-entry" id="m-clip-speed"><span>Speed / Duration...</span></div>
-            <div class="menu-entry" id="m-clip-link"><span>Toggle Linked Selection</span><span class="menu-shortcut">Ctrl+L</span></div>
+            <div class="menu-sep"></div>
+            <div class="menu-entry" id="m-clip-link-clips"><span>Link Clips</span><span class="menu-shortcut">Ctrl+L</span></div>
+            <div class="menu-entry" id="m-clip-unlink-clips"><span>Unlink Clips</span><span class="menu-shortcut">Ctrl+Shift+L</span></div>
+            <div class="menu-entry" id="m-clip-select-linked"><span>Select Linked Clips</span></div>
+            <div class="menu-entry" id="m-clip-move-sync"><span>Move Into Sync</span></div>
+            <div class="menu-entry" id="m-clip-link"><span>Toggle Linked Selection</span><span class="menu-shortcut">Shift+L</span></div>
             <div class="menu-sep"></div>
             <div class="menu-entry" id="m-clip-reset"><span>Reset Transform & Grade</span></div>
           </div>
@@ -441,9 +447,13 @@
       <section class="panel hidden-panel" id="panel-deliver-settings" style="flex: 0.95;">
         <div class="panel-header">
           <div class="panel-tabs">
-            <button class="panel-tab active"><span class="icon icon-sm">ios_share</span> Export Settings & Codec Configuration</button>
+            <button class="panel-tab active"><span class="icon icon-sm">ios_share</span> Export Settings</button>
           </div>
-          <div class="panel-actions">
+          <div class="panel-actions" style="gap: 6px;">
+            <div class="deliver-mode-tabs">
+              <button class="deliver-mode-tab active" id="btn-deliver-mode-quick">Quick</button>
+              <button class="deliver-mode-tab" id="btn-deliver-mode-advanced">Advanced</button>
+            </div>
             <button class="panel-action-btn btn-maximize-panel" data-tooltip="Maximize (`)"><span class="icon icon-sm">fullscreen</span></button>
           </div>
         </div>
@@ -483,7 +493,7 @@
             <button class="tool-btn active" id="btn-snap-toggle" data-tooltip="Snapping (S) · Hold Alt to bypass">
               <span class="icon icon-sm">align_horizontal_center</span>
             </button>
-            <button class="tool-btn active" id="btn-link-toggle" data-tooltip="Linked Selection (Ctrl+L)">
+            <button class="tool-btn active" id="btn-link-toggle" data-tooltip="Linked Selection (Shift+L)">
               <span class="icon icon-sm">link</span>
             </button>
             <button class="tool-btn active" id="btn-synclock-toggle" data-tooltip="Track Sync Lock">

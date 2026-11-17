@@ -19,10 +19,25 @@ import {
   renderTransitionComposite,
 } from './js/transitions-gpu.js';
 import {
+  FORMAT_REGISTRY,
   EXPORT_PRESETS,
   detectExportCodecs,
+  estimateFileSizeMB,
+  validateExportConfig,
   RenderQueueManager,
 } from './js/export-pipeline.js';
+import {
+  generateLinkGroupId,
+  getLinkedGroupMembers,
+  resolveSelectionForClick,
+  computeSyncOffsetSeconds,
+  applyLinkedMove,
+  applyLinkedTrim,
+  applyLinkedSplit,
+  linkClipsByIds,
+  unlinkClipsByIds,
+  moveClipIntoSync,
+} from './js/linked-clips.js';
 import {
   FrameflowStateStore,
   createDefaultProjectState,
@@ -46,14 +61,37 @@ const layoutManager = new FrameflowLayoutManager(store, () => {
 
 const TRACK_COLORS = ['#4B8DFF', '#8B5CF6', '#38C995', '#06B6D4', '#E5B45C', '#E36F78'];
 
-// Non-persistent UI transient helpers
+// Non-persistent UI transient helpers + Export Config Draft
 const uiState = {
   assetSearchQuery: '',
   selectedFxCategory: 'All',
-  selectedDeliverPreset: 'webm_1080p',
   pendingRelinkAssetId: null,
   undoStack: [],
   redoStack: [],
+  deliverMode: 'quick', // 'quick' | 'advanced'
+  customExportPresets: JSON.parse(localStorage.getItem('ff_export_presets') || '[]'),
+  exportConfig: {
+    presetId: 'match_high',
+    formatId: 'mp4_h264',
+    filename: 'Master_Sequence_Final',
+    rangeMode: 'entire', // 'entire' | 'inout' | 'selected'
+    matchSequence: true,
+    width: 1920,
+    height: 1080,
+    fps: 24,
+    scaling: 'fit',
+    quality: 'high',
+    rateControl: 'vbr1',
+    bitrateMbps: 20,
+    exportVideo: true,
+    exportAudio: true,
+    audioSampleRate: 48000,
+    audioBitDepth: 16,
+    audioChannels: 'stereo',
+    audioBitrateKbps: 320,
+    colorSpace: 'Rec.709',
+    captionsMode: 'none', // 'none' | 'burn' | 'srt'
+  },
 };
 
 // ----------------------------------------------------
@@ -87,7 +125,9 @@ const DEFAULT_SHORTCUTS = [
   { id: 'tool_text',        name: 'Type / Title Tool',       category: 'Tools',      key: 'T',               type: 'tool' },
   { id: 'split_playhead',   name: 'Split at Playhead',       category: 'Editing',    key: 'Ctrl+K',          type: 'edit' },
   { id: 'delete_clip',      name: 'Delete Selected Clip',    category: 'Editing',    key: 'Delete',          type: 'edit' },
-  { id: 'link_toggle',      name: 'Link / Unlink Selection', category: 'Editing',    key: 'Ctrl+L',          type: 'edit' },
+  { id: 'link_clips',       name: 'Link Selected Clips',     category: 'Editing',    key: 'Ctrl+L',          type: 'edit' },
+  { id: 'unlink_clips',     name: 'Unlink Clips',            category: 'Editing',    key: 'Ctrl+Shift+L',    type: 'edit' },
+  { id: 'toggle_linked_sel',name: 'Toggle Linked Selection', category: 'Navigation', key: 'Shift+L',         type: 'nav' },
   { id: 'undo',             name: 'Undo',                    category: 'Editing',    key: 'Ctrl+Z',          type: 'edit' },
   { id: 'redo',             name: 'Redo',                    category: 'Editing',    key: 'Ctrl+Shift+Z',    type: 'edit' },
   { id: 'snap_toggle',      name: 'Toggle Snapping',         category: 'Navigation', key: 'S',               type: 'nav' },
@@ -1142,12 +1182,18 @@ function insertSourceOrAssetToTimeline(assetId, startTime, { mode = 'insert', us
       });
     }
 
-    let primaryClipId = null;
-    if (videoTrack && !asset.type.startsWith('audio') && (!explicitTrack || explicitTrack.type === 'video')) {
-      primaryClipId = `clip_v_${Date.now()}`;
+    const createVideo = !!(videoTrack && !asset.type.startsWith('audio') && (!explicitTrack || explicitTrack.type === 'video'));
+    const createAudio = !!(audioTrack && (asset.type.startsWith('audio') || !explicitTrack || explicitTrack.type === 'video'));
+    const sharedLinkGroupId = (createVideo && createAudio) ? generateLinkGroupId() : null;
+    const createdIds = [];
+
+    if (createVideo) {
+      const vId = `clip_v_${Date.now()}`;
       seq.clips.push({
-        id: primaryClipId,
+        id: vId,
         assetId: asset.id,
+        mediaType: 'video',
+        linkGroupId: sharedLinkGroupId,
         name: asset.name,
         trackId: videoTrack.id,
         timelineStart: startTime,
@@ -1159,13 +1205,16 @@ function insertSourceOrAssetToTimeline(assetId, startTime, { mode = 'insert', us
         audio: { volumeDb: 0, pan: 0, fadeIn: 0, fadeOut: 0 },
         transitionIn: null,
       });
+      createdIds.push(vId);
     }
 
-    if (audioTrack && (asset.type.startsWith('audio') || !explicitTrack || explicitTrack.type === 'video')) {
-      const aId = `clip_a_${Date.now()}`;
+    if (createAudio) {
+      const aId = `clip_a_${Date.now()}_a`;
       seq.clips.push({
         id: aId,
         assetId: asset.id,
+        mediaType: 'audio',
+        linkGroupId: sharedLinkGroupId,
         name: asset.type.startsWith('audio') ? asset.name : `${asset.name} [Audio]`,
         trackId: audioTrack.id,
         timelineStart: startTime,
@@ -1177,11 +1226,11 @@ function insertSourceOrAssetToTimeline(assetId, startTime, { mode = 'insert', us
         audio: { volumeDb: 0, pan: 0, fadeIn: 0, fadeOut: 0 },
         transitionIn: null,
       });
-      if (!primaryClipId) primaryClipId = aId;
+      createdIds.push(aId);
     }
 
-    if (primaryClipId) setSelectedClipIds([primaryClipId]);
-    store.sessionState.playheadTime = startTime + 0.05; // Land inside the newly inserted clip so Program Monitor immediately shows its live frame!
+    if (createdIds.length > 0) setSelectedClipIds(createdIds);
+    store.sessionState.playheadTime = startTime + 0.05;
   });
 
   if (store.sessionState.monitorMode === 'single') {
@@ -1771,14 +1820,18 @@ function renderTimeline() {
         const dec = clip.assetId ? store.runtimeState.decoders.get(clip.assetId) : null;
         const offline = dec && dec.missing;
         const hasFx = clip.colorEffects && (clip.colorEffects.exposure !== 0 || clip.colorEffects.contrast !== 1 || clip.colorEffects.saturation !== 1);
+        const syncOffset = computeSyncOffsetSeconds(seq.clips, clip);
+        const syncLabel = syncOffset !== 0 ? `${syncOffset > 0 ? '+' : ''}${syncOffset.toFixed(1)}s` : '';
 
         lanesHtml += `
           <div class="timeline-clip-block ${isAudio ? 'audio' : ''} ${isSel ? 'selected' : ''}" data-id="${clip.id}" style="left: ${leftPx}px; width: ${widthPx}px; ${offline ? 'background: #7F1D1D; border-color: var(--error);' : (clip.isTitle ? 'background: #5B21B6;' : '')}">
             <div class="trim-handle left"></div>
             ${clip.transitionIn ? `<div class="clip-transition-badge" title="${clip.transitionIn.name}">T</div>` : ''}
-            <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; pointer-events: none; padding-left: ${clip.transitionIn ? '14px' : '0'};">
+            <div style="display: flex; align-items: center; gap: 3px; overflow: hidden; pointer-events: none; padding-left: ${clip.transitionIn ? '14px' : '0'};">
               <span class="icon icon-sm">${offline ? 'link_off' : (clip.isTitle ? 'title' : (isAudio ? 'graphic_eq' : 'movie'))}</span>
+              ${clip.linkGroupId ? `<span class="icon clip-link-icon" title="Linked Clip">link</span>` : ''}
               ${tds.showNames ? `<span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${clip.name}</span>` : ''}
+              ${syncLabel ? `<span class="clip-sync-badge" title="Out of sync by ${syncLabel} — Right-click > Move Into Sync">${syncLabel}</span>` : ''}
             </div>
             ${isAudio && tds.showWaveforms ? `<div style="position: absolute; bottom: 2px; left: 8px; right: 8px; height: 10px; opacity: 0.38; background: repeating-linear-gradient(90deg, #38C995 0px, #38C995 2px, transparent 2px, transparent 4px); pointer-events: none;"></div>` : ''}
             ${isAudio && tds.showAudioBand ? `<div class="clip-rubber-band" style="top: 50%; background: rgba(56,201,149,0.7);"></div>` : ''}
@@ -1819,7 +1872,7 @@ function renderTimeline() {
       });
     });
 
-    // Bind Clip Click, Drag (Snap Guide + Alt Bypass), Trim & Context Menu
+    // Bind Linked Selection, Linked Move, Linked Trim & Rich Context Menu
     lanes.querySelectorAll('.timeline-clip-block').forEach(clipEl => {
       const clipId = clipEl.dataset.id;
       const clip = seq.clips.find(c => c.id === clipId);
@@ -1832,8 +1885,12 @@ function renderTimeline() {
           if (!track.locked) splitClipAction(clipId, store.sessionState.playheadTime);
           return;
         }
-        setSelectedClipIds([clipId]);
-        // Switch monitor to Program if in single mode so user immediately sees sequence composition
+        const nextSel = resolveSelectionForClick(seq.clips, clipId, {
+          isLinkedSelection: store.sessionState.isLinkedSelection,
+          additive: e.shiftKey || e.ctrlKey,
+          currentSelectedIds: store.sessionState.selectedClipIds,
+        });
+        setSelectedClipIds(nextSel);
         if (store.sessionState.monitorMode === 'single' && store.sessionState.activeMonitorTab !== 'program') {
           switchMonitorTab('program');
         }
@@ -1845,42 +1902,76 @@ function renderTimeline() {
       clipEl.addEventListener('contextmenu', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        setSelectedClipIds([clipId]);
-        renderTimeline();
-        renderInspector();
+        if (!store.sessionState.selectedClipIds.includes(clipId)) {
+          const nextSel = resolveSelectionForClick(seq.clips, clipId, {
+            isLinkedSelection: store.sessionState.isLinkedSelection,
+          });
+          setSelectedClipIds(nextSel);
+          renderTimeline();
+          renderInspector();
+        }
+
+        const isLinked = !!clip.linkGroupId;
+        const syncOff = computeSyncOffsetSeconds(seq.clips, clip);
+        const linkMenuItems = [
+          ...(isLinked
+            ? [
+                { label: 'Unlink Clips', shortcut: 'Ctrl+Shift+L', action: unlinkSelectedClipsAction },
+                { label: 'Select Linked Clips', action: () => selectLinkedClipsAction(clipId) },
+              ]
+            : [
+                { label: 'Link Selected Clips', shortcut: 'Ctrl+L', action: linkSelectedClipsAction },
+              ]),
+          ...(syncOff !== 0 ? [{ label: `Move Into Sync (${syncOff > 0 ? '+' : ''}${syncOff.toFixed(1)}s)`, action: () => moveIntoSyncAction(clipId) }] : []),
+          { label: 'Reveal Original Media', action: () => revealOriginalMedia(clip.assetId) },
+        ];
 
         if (track.type === 'audio') {
           openContextMenu(e.clientX, e.clientY, [
+            ...linkMenuItems,
+            { sep: true },
             { label: 'Gain +3.0 dB', action: () => executeCommand('Gain +3dB', () => { clip.audio.volumeDb = Math.min(12, clip.audio.volumeDb + 3); }) },
             { label: 'Gain -3.0 dB', action: () => executeCommand('Gain -3dB', () => { clip.audio.volumeDb = Math.max(-40, clip.audio.volumeDb - 3); }) },
             { label: 'Add 1s Fade In & Out', action: () => executeCommand('Add Fades', () => { clip.audio.fadeIn = 1; clip.audio.fadeOut = 1; }) },
+            { label: 'Toggle Audio Waveform', action: () => { store.sessionState.timelineDisplay.showWaveforms = !store.sessionState.timelineDisplay.showWaveforms; renderTimeline(); } },
             { sep: true },
             { label: 'Open Audio Mixer Workspace', action: () => switchWorkspace('audio') },
-            { label: 'Delete Audio Clip', shortcut: 'Del', action: deleteActiveClip },
+            { label: 'Delete Selected Clip(s)', shortcut: 'Del', action: deleteActiveClip },
           ]);
         } else {
           openContextMenu(e.clientX, e.clientY, [
+            ...linkMenuItems,
+            { sep: true },
             { label: 'Split at Playhead', shortcut: 'Ctrl+K', action: () => splitClipAction(clipId, store.sessionState.playheadTime) },
             { label: 'Copy Clip', shortcut: 'Ctrl+C', action: () => { store.runtimeState.clipboardClip = JSON.parse(JSON.stringify(clip)); } },
             { label: 'Apply Cross Dissolve In', action: () => applyTransitionToActiveClip(TRANSITION_CATALOG[0]) },
             { label: 'Speed / Duration...', action: () => editClipSpeedPrompt(clip) },
             { label: 'Reset Transform & Grade', action: () => resetClipProperties(clip) },
             { sep: true },
-            { label: 'Delete Clip', shortcut: 'Del', action: deleteActiveClip },
+            { label: 'Delete Selected Clip(s)', shortcut: 'Del', action: deleteActiveClip },
           ]);
         }
       });
 
+      // Linked Move Drag (moves entire linked group atomically when Linked Selection is active)
       clipEl.addEventListener('mousedown', (e) => {
         if (e.button !== 0 || e.target.classList.contains('trim-handle') || store.sessionState.activeTool === 'razor' || track.locked) return;
         e.preventDefault();
         const startX = e.clientX;
-        const initStart = clip.timelineStart;
+        const initLeadStart = clip.timelineStart;
+        const members = (store.sessionState.isLinkedSelection && clip.linkGroupId)
+          ? getLinkedGroupMembers(seq.clips, clip)
+          : [clip];
+        const initialStarts = new Map(members.map(m => [m.id, m.timelineStart]));
+        const beforeSnapshot = JSON.parse(JSON.stringify(store.projectState));
+        let moved = false;
 
         const onMove = (ev) => {
-          const raw = Math.max(0, initStart + (ev.clientX - startX) / store.sessionState.timelineZoom);
-          const snapRes = computeSnappedTime(raw, clip.id, ev.altKey);
-          clip.timelineStart = snapRes.time;
+          const rawStart = Math.max(0, initLeadStart + (ev.clientX - startX) / store.sessionState.timelineZoom);
+          const snapRes = computeSnappedTime(rawStart, clip.id, ev.altKey);
+          const deltaSec = snapRes.time - initLeadStart;
+          if (Math.abs(deltaSec) > 0.001) moved = true;
+          applyLinkedMove(seq.clips, seq.tracks, clip, initialStarts, deltaSec, store.sessionState.isLinkedSelection);
           showSnapGuide(snapRes.snapped ? snapRes.time : null);
           renderTimeline();
         };
@@ -1888,39 +1979,70 @@ function renderTimeline() {
           showSnapGuide(null);
           window.removeEventListener('mousemove', onMove);
           window.removeEventListener('mouseup', onUp);
-          executeCommand('Move Clip', () => {});
+          if (moved) {
+            uiState.undoStack.push({ description: 'Move Linked Clip(s)', snapshot: beforeSnapshot });
+            if (uiState.undoStack.length > 50) uiState.undoStack.shift();
+            uiState.redoStack = [];
+            store.scheduleSave(250);
+            renderAll();
+          }
         };
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
       });
 
+      // Linked Left Trim
       clipEl.querySelector('.trim-handle.left')?.addEventListener('mousedown', (e) => {
         if (track.locked) return;
         e.stopPropagation(); e.preventDefault();
         const startX = e.clientX;
-        const initStart = clip.timelineStart, initDur = clip.timelineDuration, initSrc = clip.sourceStart;
+        const members = (store.sessionState.isLinkedSelection && clip.linkGroupId)
+          ? getLinkedGroupMembers(seq.clips, clip)
+          : [clip];
+        const initMap = new Map(members.map(m => [m.id, { timelineStart: m.timelineStart, timelineDuration: m.timelineDuration, sourceStart: m.sourceStart || 0 }]));
+        const beforeSnapshot = JSON.parse(JSON.stringify(store.projectState));
+
         const onMove = (ev) => {
-          const delta = Math.min((ev.clientX - startX) / store.sessionState.timelineZoom, initDur - 0.2);
-          clip.timelineStart = Math.max(0, initStart + delta);
-          clip.timelineDuration = Math.max(0.2, initDur - delta);
-          clip.sourceStart = Math.max(0, initSrc + delta);
+          const delta = (ev.clientX - startX) / store.sessionState.timelineZoom;
+          applyLinkedTrim(seq.clips, seq.tracks, clip, 'left', initMap, delta, store.sessionState.isLinkedSelection);
           renderTimeline();
         };
-        const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); executeCommand('Trim Clip In', () => {}); };
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          uiState.undoStack.push({ description: 'Trim Linked Clip In', snapshot: beforeSnapshot });
+          uiState.redoStack = [];
+          store.scheduleSave(250);
+          renderAll();
+        };
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
       });
 
+      // Linked Right Trim
       clipEl.querySelector('.trim-handle.right')?.addEventListener('mousedown', (e) => {
         if (track.locked) return;
         e.stopPropagation(); e.preventDefault();
         const startX = e.clientX;
-        const initDur = clip.timelineDuration;
+        const members = (store.sessionState.isLinkedSelection && clip.linkGroupId)
+          ? getLinkedGroupMembers(seq.clips, clip)
+          : [clip];
+        const initMap = new Map(members.map(m => [m.id, { timelineStart: m.timelineStart, timelineDuration: m.timelineDuration, sourceStart: m.sourceStart || 0 }]));
+        const beforeSnapshot = JSON.parse(JSON.stringify(store.projectState));
+
         const onMove = (ev) => {
-          clip.timelineDuration = Math.max(0.2, initDur + (ev.clientX - startX) / store.sessionState.timelineZoom);
+          const delta = (ev.clientX - startX) / store.sessionState.timelineZoom;
+          applyLinkedTrim(seq.clips, seq.tracks, clip, 'right', initMap, delta, store.sessionState.isLinkedSelection);
           renderTimeline();
         };
-        const onUp = () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); executeCommand('Trim Clip Out', () => {}); };
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          uiState.undoStack.push({ description: 'Trim Linked Clip Out', snapshot: beforeSnapshot });
+          uiState.redoStack = [];
+          store.scheduleSave(250);
+          renderAll();
+        };
         window.addEventListener('mousemove', onMove);
         window.addEventListener('mouseup', onUp);
       });
@@ -1936,32 +2058,70 @@ function updatePlayheadPositionUI() {
 
 function splitClipAction(clipId, splitTime) {
   const seq = getActiveSequence();
-  const clip = seq.clips.find(c => c.id === clipId);
-  if (!clip || splitTime <= clip.timelineStart + 0.05 || splitTime >= clip.timelineStart + clip.timelineDuration - 0.05) return;
-  executeCommand('Split Clip', () => {
-    const offset = splitTime - clip.timelineStart;
-    const right = {
-      ...JSON.parse(JSON.stringify(clip)),
-      id: `clip_${Date.now()}_r`,
-      timelineStart: splitTime,
-      timelineDuration: clip.timelineDuration - offset,
-      sourceStart: clip.sourceStart + offset,
-      transitionIn: null,
-    };
-    clip.timelineDuration = offset;
-    seq.clips.push(right);
-    setSelectedClipIds([right.id]);
+  executeCommand('Split Linked Clip(s)', () => {
+    const rightIds = applyLinkedSplit(seq, clipId, splitTime, store.sessionState.isLinkedSelection);
+    if (rightIds.length > 0) setSelectedClipIds(rightIds);
   });
 }
 
 function deleteActiveClip() {
-  const id = getSelectedClipId();
-  if (!id) return;
+  const selectedIds = store.sessionState.selectedClipIds;
+  if (!selectedIds || selectedIds.length === 0) return;
   const seq = getActiveSequence();
-  executeCommand('Delete Clip', () => {
-    seq.clips = seq.clips.filter(c => c.id !== id);
+  const toDelete = new Set(selectedIds);
+  if (store.sessionState.isLinkedSelection) {
+    for (const id of selectedIds) {
+      const c = seq.clips.find(x => x.id === id);
+      if (c && c.linkGroupId) {
+        getLinkedGroupMembers(seq.clips, c).forEach(m => toDelete.add(m.id));
+      }
+    }
+  }
+  executeCommand('Delete Selected Clip(s)', () => {
+    seq.clips = seq.clips.filter(c => !toDelete.has(c.id));
     setSelectedClipIds([]);
   });
+}
+
+function linkSelectedClipsAction() {
+  const ids = store.sessionState.selectedClipIds;
+  if (!ids || ids.length < 2) {
+    alert('Shift+Click two or more clips (e.g., Video on V1 and Audio on A1) to Link them together.');
+    return;
+  }
+  executeCommand('Link Clips', () => {
+    linkClipsByIds(getActiveSequence().clips, ids);
+  });
+}
+
+function unlinkSelectedClipsAction() {
+  const ids = store.sessionState.selectedClipIds;
+  if (!ids || ids.length === 0) return;
+  executeCommand('Unlink Clips', () => {
+    unlinkClipsByIds(getActiveSequence().clips, ids);
+  });
+}
+
+function selectLinkedClipsAction(clipId) {
+  const seq = getActiveSequence();
+  const c = seq.clips.find(x => x.id === clipId);
+  if (!c) return;
+  const members = getLinkedGroupMembers(seq.clips, c).map(m => m.id);
+  setSelectedClipIds(members);
+  renderTimeline();
+  renderInspector();
+}
+
+function moveIntoSyncAction(clipId) {
+  executeCommand('Move Clip Into Sync', () => {
+    moveClipIntoSync(getActiveSequence().clips, clipId);
+  });
+}
+
+function revealOriginalMedia(assetId) {
+  if (!assetId || !store.projectState.assets[assetId]) return;
+  loadAssetIntoSourceMonitor(assetId, { preserveInOut: false, switchTab: true });
+  renderAssetsList();
 }
 
 function pasteClipboardClip() {
@@ -1971,6 +2131,7 @@ function pasteClipboardClip() {
   executeCommand('Paste Clip', () => {
     const copy = JSON.parse(JSON.stringify(src));
     copy.id = `clip_paste_${Date.now()}`;
+    copy.linkGroupId = null;
     copy.timelineStart = store.sessionState.playheadTime;
     seq.clips.push(copy);
     setSelectedClipIds([copy.id]);
@@ -2289,45 +2450,325 @@ function renderAudioConsole() {
 
 function initDeliverControls() {
   document.getElementById('btn-render-all-queue')?.addEventListener('click', () => {
-    renderQueue.renderAllQueued((ctx, w, h, t) => renderSequenceFrameAtTime(ctx, w, h, t));
+    renderQueue.renderAllQueued(
+      (ctx, w, h, t) => renderSequenceFrameAtTime(ctx, w, h, t),
+      getActiveSequence()
+    );
   });
   document.getElementById('btn-cancel-queue')?.addEventListener('click', () => renderQueue.cancelActive());
+
+  document.getElementById('btn-deliver-mode-quick')?.addEventListener('click', () => {
+    uiState.deliverMode = 'quick';
+    document.getElementById('btn-deliver-mode-quick')?.classList.add('active');
+    document.getElementById('btn-deliver-mode-advanced')?.classList.remove('active');
+    renderDeliverSettings();
+  });
+  document.getElementById('btn-deliver-mode-advanced')?.addEventListener('click', () => {
+    uiState.deliverMode = 'advanced';
+    document.getElementById('btn-deliver-mode-advanced')?.classList.add('active');
+    document.getElementById('btn-deliver-mode-quick')?.classList.remove('active');
+    renderDeliverSettings();
+  });
+}
+
+function getComputedExportRange(seq, rangeMode) {
+  const contentEnd = seq.clips.reduce((max, c) => Math.max(max, c.timelineStart + c.timelineDuration), 0);
+  if (rangeMode === 'inout' && seq.inPoint !== null && seq.outPoint !== null && seq.outPoint > seq.inPoint) {
+    return { start: seq.inPoint, duration: seq.outPoint - seq.inPoint, label: 'In/Out Range' };
+  }
+  if (rangeMode === 'selected') {
+    const clip = getActiveClip();
+    if (clip) return { start: clip.timelineStart, duration: clip.timelineDuration, label: `Clip: ${clip.name}` };
+  }
+  return { start: 0, duration: contentEnd > 0 ? contentEnd : 5, label: 'Entire Sequence' };
+}
+
+function applyPresetToExportConfig(presetId) {
+  const allPresets = [...EXPORT_PRESETS, ...uiState.customExportPresets];
+  const p = allPresets.find(x => x.id === presetId);
+  if (!p) return;
+  const seq = getActiveSequence();
+  Object.assign(uiState.exportConfig, {
+    presetId: p.id,
+    formatId: p.formatId,
+    matchSequence: !!p.matchSequence,
+    width: p.matchSequence ? seq.width : p.width,
+    height: p.matchSequence ? seq.height : p.height,
+    fps: p.matchSequence ? seq.fps : p.fps,
+    bitrateMbps: p.bitrateMbps,
+    quality: p.quality,
+    rateControl: p.rateControl,
+    scaling: p.scaling,
+    exportVideo: p.exportVideo,
+    exportAudio: p.exportAudio,
+    audioSampleRate: p.audioSampleRate,
+    audioBitDepth: p.audioBitDepth,
+    audioChannels: p.audioChannels,
+    audioBitrateKbps: p.audioBitrateKbps,
+  });
 }
 
 function renderDeliverSettings() {
   const body = document.getElementById('deliver-settings-body');
   if (!body) return;
-  const preset = EXPORT_PRESETS.find(p => p.id === uiState.selectedDeliverPreset) || EXPORT_PRESETS[0];
-  const codecs = store.runtimeState.codecCapabilities || detectExportCodecs();
+  const cfg = uiState.exportConfig;
   const seq = getActiveSequence();
-  const contentEnd = seq.clips.reduce((max, c) => Math.max(max, c.timelineStart + c.timelineDuration), 0);
-  const exportDur = contentEnd > 0 ? Math.min(30, contentEnd) : 5;
+  const codecProbe = store.runtimeState.codecCapabilities || detectExportCodecs();
+  const range = getComputedExportRange(seq, cfg.rangeMode);
+  const fullConfig = { ...cfg, rangeStart: range.start, durationSec: range.duration };
+  const validation = validateExportConfig(fullConfig, codecProbe);
+  const fmt = validation.format || codecProbe.formats[0];
+  const estMB = estimateFileSizeMB(fullConfig);
+
+  // Group Formats by Category
+  const fmtCategories = [...new Set(codecProbe.formats.map(f => f.category))];
+  const allPresets = [...EXPORT_PRESETS, ...uiState.customExportPresets];
+  const presetGroups = [...new Set(allPresets.map(p => p.group || 'Custom'))];
+
+  const isVideo = fmt && fmt.kind === 'video';
+  const isAudioOnly = fmt && fmt.kind === 'audio';
+  const isImage = fmt && fmt.kind === 'image';
 
   body.innerHTML = `
-    <div style="padding: 10px; display: flex; flex-direction: column; gap: 10px;">
-      <div style="display: flex; flex-wrap: wrap; gap: 4px;">
-        ${EXPORT_PRESETS.map(p => `<button class="fx-pill ${p.id === preset.id ? 'active' : ''}" data-preset-id="${p.id}">${p.name}</button>`).join('')}
+    <div style="display: flex; flex-direction: column; height: 100%;">
+      <div style="flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px;">
+        <!-- Core Format, Preset & Output File -->
+        <div class="deliver-form-grid" style="padding: 0;">
+          <div class="field-row">
+            <div class="field-header"><span>Format</span></div>
+            <select id="deliv-format" class="compact-select" style="padding: 5px;">
+              ${fmtCategories.map(cat => `
+                <optgroup label="${cat}">
+                  ${codecProbe.formats.filter(f => f.category === cat).map(f => `
+                    <option value="${f.id}" ${f.id === cfg.formatId ? 'selected' : ''} ${!f.supported ? 'disabled' : ''}>
+                      ${f.label}${!f.supported ? ' [Unavailable]' : ''}
+                    </option>
+                  `).join('')}
+                </optgroup>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="field-row">
+            <div class="field-header"><span>Preset</span><button class="action-btn-compact" id="btn-save-export-preset" style="padding: 0 4px; font-size: 10px;">+ Save</button></div>
+            <select id="deliv-preset" class="compact-select" style="padding: 5px;">
+              ${presetGroups.map(grp => `
+                <optgroup label="${grp}">
+                  ${allPresets.filter(p => (p.group || 'Custom') === grp).map(p => `
+                    <option value="${p.id}" ${p.id === cfg.presetId ? 'selected' : ''}>${p.name}</option>
+                  `).join('')}
+                </optgroup>
+              `).join('')}
+            </select>
+          </div>
+
+          <div class="field-row">
+            <div class="field-header"><span>Output Filename</span></div>
+            <input type="text" id="deliv-filename" value="${cfg.filename}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px 7px; border-radius: 3px; font-size: 11.5px;">
+          </div>
+
+          <div class="field-row">
+            <div class="field-header"><span>Export Range</span><span class="field-val">${range.duration.toFixed(1)}s</span></div>
+            <select id="deliv-range" class="compact-select" style="padding: 5px;">
+              <option value="entire" ${cfg.rangeMode === 'entire' ? 'selected' : ''}>Entire Sequence</option>
+              <option value="inout" ${cfg.rangeMode === 'inout' ? 'selected' : ''}>Sequence In/Out Range</option>
+              <option value="selected" ${cfg.rangeMode === 'selected' ? 'selected' : ''}>Selected Clip Only</option>
+            </select>
+          </div>
+        </div>
+
+        ${validation.errors.length > 0 ? `<div style="padding: 6px 8px; background: rgba(227,111,120,0.14); border: 1px solid var(--error); border-radius: 4px; font-size: 11px; color: var(--error);">${validation.errors.join(' ')}</div>` : ''}
+        ${validation.warnings.length > 0 ? `<div style="padding: 6px 8px; background: rgba(229,180,92,0.14); border: 1px solid var(--warning); border-radius: 4px; font-size: 11px; color: var(--warning);">${validation.warnings.join(' ')}</div>` : ''}
+
+        ${uiState.deliverMode === 'advanced' ? `
+          <!-- ADVANCED ACCORDION 1: VIDEO SETTINGS -->
+          ${!isAudioOnly ? `
+            <div class="inspector-accordion" style="border: 1px solid var(--border); border-radius: 4px;">
+              <div class="accordion-header"><span>Video Settings</span><span class="icon icon-sm">expand_more</span></div>
+              <div class="accordion-content">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <label style="font-size: 11px; display: flex; gap: 5px; align-items: center;"><input type="checkbox" id="deliv-match-seq" ${cfg.matchSequence ? 'checked' : ''}> Match Sequence (${seq.width}×${seq.height} · ${seq.fps}fps)</label>
+                  <select id="deliv-res-preset" class="compact-select">
+                    <option value="">Resolution Preset...</option>
+                    <option value="3840x2160">4K UHD (3840×2160)</option>
+                    <option value="2560x1440">2K QHD (2560×1440)</option>
+                    <option value="1920x1080">Full HD (1920×1080)</option>
+                    <option value="1280x720">HD (1280×720)</option>
+                    <option value="1080x1920">Vertical 9:16 (1080×1920)</option>
+                    <option value="1080x1350">Portrait 4:5 (1080×1350)</option>
+                  </select>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+                  <div class="field-row"><div class="field-header"><span>Width</span></div><input type="number" id="deliv-w" value="${cfg.width}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 4px; border-radius: 3px; font-size: 11px;"></div>
+                  <div class="field-row"><div class="field-header"><span>Height</span></div><input type="number" id="deliv-h" value="${cfg.height}" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 4px; border-radius: 3px; font-size: 11px;"></div>
+                  <div class="field-row"><div class="field-header"><span>Frame Rate</span></div>
+                    <select id="deliv-fps" class="compact-select" style="padding: 4px;">
+                      ${[23.976, 24, 25, 29.97, 30, 60].map(r => `<option value="${r}" ${cfg.fps === r ? 'selected' : ''}>${r} fps</option>`).join('')}
+                    </select>
+                  </div>
+                </div>
+                ${isVideo ? `
+                  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                    <div class="field-row"><div class="field-header"><span>Quality Preset</span></div>
+                      <select id="deliv-quality" class="compact-select" style="padding: 4px;">
+                        <option value="draft" ${cfg.quality==='draft'?'selected':''}>Draft (Fast)</option>
+                        <option value="standard" ${cfg.quality==='standard'?'selected':''}>Standard</option>
+                        <option value="high" ${cfg.quality==='high'?'selected':''}>High</option>
+                        <option value="maximum" ${cfg.quality==='maximum'?'selected':''}>Maximum</option>
+                      </select>
+                    </div>
+                    <div class="field-row"><div class="field-header"><span>Target Bitrate</span><span class="field-val" id="deliv-br-val">${cfg.bitrateMbps} Mbps</span></div>
+                      <input type="range" id="deliv-bitrate" min="2" max="60" step="1" value="${cfg.bitrateMbps}">
+                    </div>
+                  </div>
+                ` : ''}
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- ADVANCED ACCORDION 2: AUDIO SETTINGS -->
+          ${!isImage ? `
+            <div class="inspector-accordion" style="border: 1px solid var(--border); border-radius: 4px;">
+              <div class="accordion-header"><span>Audio Settings</span><span class="icon icon-sm">expand_more</span></div>
+              <div class="accordion-content">
+                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;">
+                  <div class="field-row"><div class="field-header"><span>Sample Rate</span></div>
+                    <select id="deliv-sr" class="compact-select" style="padding: 4px;">
+                      ${[44100, 48000, 96000].map(sr => `<option value="${sr}" ${cfg.audioSampleRate===sr?'selected':''}>${sr/1000} kHz</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="field-row"><div class="field-header"><span>Channels</span></div>
+                    <select id="deliv-ch" class="compact-select" style="padding: 4px;">
+                      <option value="mono" ${cfg.audioChannels==='mono'?'selected':''}>Mono (1.0)</option>
+                      <option value="stereo" ${cfg.audioChannels==='stereo'?'selected':''}>Stereo (2.0)</option>
+                    </select>
+                  </div>
+                  <div class="field-row"><div class="field-header"><span>${isAudioOnly ? 'Bit Depth' : 'Bitrate'}</span></div>
+                    ${isAudioOnly
+                      ? `<select id="deliv-bd" class="compact-select" style="padding: 4px;"><option value="16" ${cfg.audioBitDepth===16?'selected':''}>16-bit PCM</option><option value="24" ${cfg.audioBitDepth===24?'selected':''}>24-bit PCM</option></select>`
+                      : `<select id="deliv-abr" class="compact-select" style="padding: 4px;">${[128, 192, 256, 320].map(b => `<option value="${b}" ${cfg.audioBitrateKbps===b?'selected':''}>${b} kbps</option>`).join('')}</select>`}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- ADVANCED ACCORDION 3: COLOUR & CAPTIONS -->
+          <div class="inspector-accordion" style="border: 1px solid var(--border); border-radius: 4px;">
+            <div class="accordion-header"><span>Colour, Captions & Metadata</span><span class="icon icon-sm">chevron_right</span></div>
+            <div class="accordion-content collapsed">
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+                <div class="field-row"><div class="field-header"><span>Color Space</span></div>
+                  <select id="deliv-cs" class="compact-select" style="padding: 4px;">
+                    <option value="Rec.709" selected>Rec.709 (SDR Standard)</option>
+                  </select>
+                </div>
+                <div class="field-row"><div class="field-header"><span>Captions / Subtitles</span></div>
+                  <select id="deliv-cap" class="compact-select" style="padding: 4px;">
+                    <option value="none" ${cfg.captionsMode==='none'?'selected':''}>None</option>
+                    <option value="burn" ${cfg.captionsMode==='burn'?'selected':''}>Burn Titles Into Video</option>
+                    <option value="srt" ${cfg.captionsMode==='srt'?'selected':''}>Export Separate .SRT File</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+        ` : ''}
       </div>
-      <div class="deliver-form-grid" style="padding: 0;">
-        <div class="field-row"><div class="field-header"><span>Output Filename</span></div><input type="text" id="deliv-filename" value="${store.projectState.title.replace(/\s+/g, '_')}_Master" style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px 7px; border-radius: 3px; font-size: 11.5px;"></div>
-        <div class="field-row"><div class="field-header"><span>Container & Codec</span></div><input type="text" value="${preset.container.toUpperCase()} (${preset.codec.toUpperCase()})" readonly style="background: var(--bg-input); border: 1px solid var(--border); color: var(--accent-cyan); padding: 5px 7px; border-radius: 3px; font-size: 11.5px;"></div>
-        <div class="field-row"><div class="field-header"><span>Resolution</span></div><input type="text" value="${preset.width} × ${preset.height}" readonly style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px 7px; border-radius: 3px; font-size: 11.5px;"></div>
-        <div class="field-row"><div class="field-header"><span>Frame Rate & Bitrate</span></div><input type="text" value="${preset.fps} fps · ${preset.bitrateMbps} Mbps" readonly style="background: var(--bg-input); border: 1px solid var(--border); color: #fff; padding: 5px 7px; border-radius: 3px; font-size: 11.5px;"></div>
+
+      <!-- LIVE SETTINGS SUMMARY BAR + QUEUE / QUICK EXPORT ACTIONS -->
+      <div class="deliver-summary-bar">
+        <div style="color: var(--text-secondary);">
+          <strong style="color: #fff;">${fmt ? fmt.container.toUpperCase() : '--'}</strong> ·
+          ${isAudioOnly ? `${cfg.audioSampleRate/1000}kHz ${cfg.audioBitDepth}-bit ${cfg.audioChannels}` : `${cfg.width}×${cfg.height}${isVideo ? ` · ${cfg.fps}fps · ${cfg.bitrateMbps} Mbps` : ''}`} ·
+          Est. <strong style="color: var(--accent-cyan);">${estMB.toFixed(2)} MB</strong>
+        </div>
+        <div style="display: flex; gap: 6px;">
+          <button class="action-btn-compact" id="btn-add-to-render-queue" style="border-color: var(--border);" ${!validation.valid ? 'disabled' : ''}>
+            <span class="icon icon-sm">add_to_queue</span> Add to Queue
+          </button>
+          <button class="action-btn-compact primary" id="btn-export-now" ${!validation.valid ? 'disabled' : ''}>
+            <span class="icon icon-sm">ios_share</span> Export Now
+          </button>
+        </div>
       </div>
-      <div style="background: #10151E; border: 1px solid var(--border); border-radius: 4px; padding: 8px; font-size: 10.5px;">
-        <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px;">BROWSER CODEC CAPABILITY MATRIX</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 8px;">${codecs.formats.map(f => `<span style="color: ${f.supported ? 'var(--success)' : 'var(--text-muted)'};">${f.supported ? '✓' : '✕'} ${f.label}</span>`).join('')}</div>
-      </div>
-      <div style="display: flex; justify-content: flex-end;"><button class="action-btn-compact primary" id="btn-add-to-render-queue" style="padding: 6px 14px;"><span class="icon icon-sm">add_to_queue</span> Add to Render Queue</button></div>
     </div>
   `;
-  body.querySelectorAll('[data-preset-id]').forEach(b => b.addEventListener('click', () => { uiState.selectedDeliverPreset = b.dataset.presetId; renderDeliverSettings(); }));
-  document.getElementById('btn-add-to-render-queue')?.addEventListener('click', () => {
-    renderQueue.addJob({
-      filename: document.getElementById('deliv-filename')?.value || 'Master_Export',
-      container: preset.container, codec: preset.codec, width: preset.width, height: preset.height,
-      fps: preset.fps, bitrateMbps: preset.bitrateMbps, audioChannels: preset.audioChannels, durationSec: exportDur,
+
+  bindAccordionToggles(body);
+
+  document.getElementById('deliv-format')?.addEventListener('change', (e) => {
+    cfg.formatId = e.target.value;
+    const f = codecProbe.formats.find(x => x.id === cfg.formatId);
+    if (f) { cfg.exportVideo = f.kind !== 'audio'; cfg.exportAudio = f.kind !== 'image'; }
+    renderDeliverSettings();
+  });
+  document.getElementById('deliv-preset')?.addEventListener('change', (e) => {
+    applyPresetToExportConfig(e.target.value);
+    renderDeliverSettings();
+  });
+  document.getElementById('deliv-filename')?.addEventListener('input', (e) => { cfg.filename = e.target.value; });
+  document.getElementById('deliv-range')?.addEventListener('change', (e) => { cfg.rangeMode = e.target.value; renderDeliverSettings(); });
+
+  document.getElementById('btn-save-export-preset')?.addEventListener('click', () => {
+    const name = prompt('Save Custom Export Preset Name:', `Custom ${cfg.width}x${cfg.height}`);
+    if (!name) return;
+    const newPreset = { ...JSON.parse(JSON.stringify(cfg)), id: `cp_${Date.now()}`, group: 'Custom', name };
+    uiState.customExportPresets.push(newPreset);
+    localStorage.setItem('ff_export_presets', JSON.stringify(uiState.customExportPresets));
+    cfg.presetId = newPreset.id;
+    renderDeliverSettings();
+  });
+
+  document.getElementById('deliv-match-seq')?.addEventListener('change', (e) => {
+    cfg.matchSequence = e.target.checked;
+    if (cfg.matchSequence) { cfg.width = seq.width; cfg.height = seq.height; cfg.fps = seq.fps; }
+    renderDeliverSettings();
+  });
+  document.getElementById('deliv-res-preset')?.addEventListener('change', (e) => {
+    if (!e.target.value) return;
+    const [w, h] = e.target.value.split('x').map(Number);
+    cfg.matchSequence = false; cfg.width = w; cfg.height = h;
+    renderDeliverSettings();
+  });
+  document.getElementById('deliv-w')?.addEventListener('change', (e) => { cfg.matchSequence = false; cfg.width = Math.max(64, parseInt(e.target.value, 10) || 1920); renderDeliverSettings(); });
+  document.getElementById('deliv-h')?.addEventListener('change', (e) => { cfg.matchSequence = false; cfg.height = Math.max(64, parseInt(e.target.value, 10) || 1080); renderDeliverSettings(); });
+  document.getElementById('deliv-fps')?.addEventListener('change', (e) => { cfg.matchSequence = false; cfg.fps = parseFloat(e.target.value); renderDeliverSettings(); });
+  document.getElementById('deliv-quality')?.addEventListener('change', (e) => {
+    cfg.quality = e.target.value;
+    const brMap = { draft: 6, standard: 12, high: 20, maximum: 40 };
+    cfg.bitrateMbps = brMap[cfg.quality] || 16;
+    renderDeliverSettings();
+  });
+  document.getElementById('deliv-bitrate')?.addEventListener('input', (e) => {
+    cfg.bitrateMbps = parseInt(e.target.value, 10);
+    const lbl = document.getElementById('deliv-br-val'); if (lbl) lbl.textContent = `${cfg.bitrateMbps} Mbps`;
+  });
+  document.getElementById('deliv-sr')?.addEventListener('change', (e) => { cfg.audioSampleRate = parseInt(e.target.value, 10); renderDeliverSettings(); });
+  document.getElementById('deliv-ch')?.addEventListener('change', (e) => { cfg.audioChannels = e.target.value; renderDeliverSettings(); });
+  document.getElementById('deliv-bd')?.addEventListener('change', (e) => { cfg.audioBitDepth = parseInt(e.target.value, 10); renderDeliverSettings(); });
+  document.getElementById('deliv-abr')?.addEventListener('change', (e) => { cfg.audioBitrateKbps = parseInt(e.target.value, 10); renderDeliverSettings(); });
+  document.getElementById('deliv-cap')?.addEventListener('change', (e) => { cfg.captionsMode = e.target.value; });
+
+  const enqueueCurrent = () => {
+    const r = getComputedExportRange(seq, cfg.rangeMode);
+    const f = codecProbe.formats.find(x => x.id === cfg.formatId);
+    return renderQueue.addJob({
+      ...cfg,
+      container: f ? f.container : 'mp4',
+      codec: f ? f.codec : 'h264',
+      rangeStart: r.start,
+      durationSec: r.duration,
     });
+  };
+
+  document.getElementById('btn-add-to-render-queue')?.addEventListener('click', enqueueCurrent);
+  document.getElementById('btn-export-now')?.addEventListener('click', () => {
+    enqueueCurrent();
+    renderQueue.renderAllQueued(
+      (ctx, w, h, t) => renderSequenceFrameAtTime(ctx, w, h, t),
+      getActiveSequence()
+    );
   });
 }
 
@@ -2335,30 +2776,50 @@ function renderDeliverQueue() {
   const body = document.getElementById('deliver-queue-body');
   if (!body) return;
   if (renderQueue.jobs.length === 0) {
-    body.innerHTML = `<div style="padding: 28px; text-align: center; color: var(--text-muted);">Render Queue is empty. Click <strong>Add to Render Queue</strong> above.</div>`;
+    body.innerHTML = `<div style="padding: 28px; text-align: center; color: var(--text-muted);">Render Queue is empty. Queue multiple deliverables (4K Master, Vertical Reels, WAV Audio) from this sequence above.</div>`;
     return;
   }
   body.innerHTML = `
     <table class="queue-table">
-      <thead><tr><th>Output File</th><th>Specs</th><th>Status</th><th style="width: 180px;">Progress</th><th>Size</th><th>Actions</th></tr></thead>
+      <thead><tr><th>Output Deliverable</th><th>Stage & Validation</th><th style="width: 170px;">Progress</th><th>Size / Time</th><th>Actions</th></tr></thead>
       <tbody>
-        ${renderQueue.jobs.map(j => `
+        ${renderQueue.jobs.map((j, idx) => `
           <tr>
-            <td style="font-weight: 600;">${j.filename}.${j.container}</td>
-            <td style="color: var(--text-secondary);">${j.width}×${j.height} · ${j.fps}fps · ${j.codec.toUpperCase()}</td>
-            <td><span style="color: ${j.status === 'completed' ? 'var(--success)' : (j.status === 'failed' ? 'var(--error)' : 'var(--accent)')}; font-weight: 600; text-transform: uppercase; font-size: 10px;">${j.status}</span></td>
-            <td><div style="display: flex; align-items: center; gap: 6px;"><div style="flex: 1; height: 6px; background: #1A2230; border-radius: 3px; overflow: hidden;"><div style="width: ${j.progress}%; height: 100%; background: ${j.status === 'completed' ? 'var(--success)' : 'var(--accent)'};"></div></div><span style="font-family: monospace; font-size: 10.5px;">${j.progress}%</span></div></td>
-            <td style="font-family: monospace;">${j.outputSizeBytes > 0 ? `${(j.outputSizeBytes / 1024).toFixed(1)} KB` : '--'}</td>
-            <td style="display: flex; gap: 4px;">
+            <td>
+              <div style="font-weight: 600;">${j.filename}.${j.container}</div>
+              <div style="font-size: 10px; color: var(--text-muted);">${j.container === 'wav' ? `${j.config.audioSampleRate/1000}kHz ${j.config.audioBitDepth}-bit ${j.config.audioChannels}` : `${j.width}×${j.height} · ${j.fps}fps · ${j.codec.toUpperCase()}`} · ${j.durationSec.toFixed(1)}s</div>
+            </td>
+            <td>
+              <span style="color: ${j.status === 'completed' ? 'var(--success)' : (j.status === 'failed' ? 'var(--error)' : 'var(--accent)')}; font-weight: 600; font-size: 10.5px;">${j.stage}</span>
+              ${j.validationReport ? `<div style="font-size: 10px; color: var(--success);">${j.validationReport}</div>` : ''}
+              ${j.errorMessage ? `<div style="font-size: 10px; color: var(--error);">${j.errorMessage}</div>` : ''}
+            </td>
+            <td>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <div style="flex: 1; height: 6px; background: #1A2230; border-radius: 3px; overflow: hidden;"><div style="width: ${j.progress}%; height: 100%; background: ${j.status === 'completed' ? 'var(--success)' : 'var(--accent)'};"></div></div>
+                <span style="font-family: monospace; font-size: 10.5px;">${j.progress}%</span>
+              </div>
+              ${j.status === 'rendering' && j.etaSec !== null ? `<div style="font-size: 9.5px; color: var(--text-muted);">ETA ${j.etaSec.toFixed(1)}s</div>` : ''}
+            </td>
+            <td style="font-family: monospace; font-size: 10.5px;">
+              ${j.outputSizeBytes > 0 ? `${(j.outputSizeBytes / 1024).toFixed(1)} KB` : '--'}
+              ${j.elapsedSec > 0 ? `<div style="font-size: 9.5px; color: var(--text-muted);">${j.elapsedSec.toFixed(1)}s</div>` : ''}
+            </td>
+            <td style="display: flex; gap: 3px; flex-wrap: wrap;">
               ${j.outputUrl ? `<a href="${j.outputUrl}" download="${j.filename}.${j.container}" class="action-btn-compact primary" style="text-decoration: none;">Download</a>` : ''}
+              ${j.srtUrl ? `<a href="${j.srtUrl}" download="${j.filename}.srt" class="action-btn-compact" style="text-decoration: none; border-color: var(--border);">.SRT</a>` : ''}
+              ${idx > 0 ? `<button class="action-btn-compact btn-job-up" data-job-id="${j.id}" title="Move Up">↑</button>` : ''}
+              <button class="action-btn-compact btn-job-dup" data-job-id="${j.id}" title="Duplicate Config">Dup</button>
               ${j.status === 'failed' || j.status === 'cancelled' ? `<button class="action-btn-compact btn-retry-job" data-job-id="${j.id}">Retry</button>` : ''}
-              <button class="action-btn-compact danger btn-remove-job" data-job-id="${j.id}">Remove</button>
+              <button class="action-btn-compact danger btn-remove-job" data-job-id="${j.id}">✕</button>
             </td>
           </tr>
         `).join('')}
       </tbody>
     </table>
   `;
+  body.querySelectorAll('.btn-job-up').forEach(b => b.addEventListener('click', () => renderQueue.moveJob(b.dataset.jobId, -1)));
+  body.querySelectorAll('.btn-job-dup').forEach(b => b.addEventListener('click', () => renderQueue.duplicateJob(b.dataset.jobId)));
   body.querySelectorAll('.btn-retry-job').forEach(b => b.addEventListener('click', () => renderQueue.retryJob(b.dataset.jobId)));
   body.querySelectorAll('.btn-remove-job').forEach(b => b.addEventListener('click', () => renderQueue.removeJob(b.dataset.jobId)));
 }
@@ -2596,8 +3057,13 @@ function initMenus() {
   document.getElementById('m-proj-media')?.addEventListener('click', () => switchWorkspace('media'));
 
   document.getElementById('m-clip-insert')?.addEventListener('click', () => { if (store.sessionState.sourceAssetId) insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'insert', useSourceRange: true }); });
+  document.getElementById('m-clip-overwrite')?.addEventListener('click', () => { if (store.sessionState.sourceAssetId) insertSourceOrAssetToTimeline(store.sessionState.sourceAssetId, store.sessionState.playheadTime, { mode: 'overwrite', useSourceRange: true }); });
   document.getElementById('m-clip-split')?.addEventListener('click', () => { const id = getSelectedClipId(); if (id) splitClipAction(id, store.sessionState.playheadTime); });
   document.getElementById('m-clip-speed')?.addEventListener('click', () => { const c = getActiveClip(); if (c) editClipSpeedPrompt(c); });
+  document.getElementById('m-clip-link-clips')?.addEventListener('click', linkSelectedClipsAction);
+  document.getElementById('m-clip-unlink-clips')?.addEventListener('click', unlinkSelectedClipsAction);
+  document.getElementById('m-clip-select-linked')?.addEventListener('click', () => { const id = getSelectedClipId(); if (id) selectLinkedClipsAction(id); });
+  document.getElementById('m-clip-move-sync')?.addEventListener('click', () => { const id = getSelectedClipId(); if (id) moveIntoSyncAction(id); });
   document.getElementById('m-clip-link')?.addEventListener('click', () => document.getElementById('btn-link-toggle')?.click());
   document.getElementById('m-clip-reset')?.addEventListener('click', () => { const c = getActiveClip(); if (c) resetClipProperties(c); });
 
@@ -2832,7 +3298,17 @@ function initKeyboardEngine() {
     if (isCtrl && code === 'KeyS') { e.preventDefault(); store.flushNow(); return; }
     if (isCtrl && code === 'KeyI') { e.preventDefault(); document.getElementById('video-file-input')?.click(); return; }
     if (isCtrl && code === 'KeyM') { e.preventDefault(); switchWorkspace('deliver'); return; }
-    if (isCtrl && code === 'KeyL') { e.preventDefault(); document.getElementById('btn-link-toggle')?.click(); return; }
+    if (isCtrl && code === 'KeyL') {
+      e.preventDefault();
+      if (e.shiftKey) unlinkSelectedClipsAction();
+      else linkSelectedClipsAction();
+      return;
+    }
+    if (!isCtrl && e.shiftKey && code === 'KeyL') {
+      e.preventDefault();
+      document.getElementById('btn-link-toggle')?.click();
+      return;
+    }
     if (isCtrl && code === 'KeyK') { e.preventDefault(); const id = getSelectedClipId(); if (id) splitClipAction(id, store.sessionState.playheadTime); return; }
     if (isCtrl && code === 'KeyC') { const c = getActiveClip(); if (c) store.runtimeState.clipboardClip = JSON.parse(JSON.stringify(c)); return; }
     if (isCtrl && code === 'KeyV') { pasteClipboardClip(); return; }

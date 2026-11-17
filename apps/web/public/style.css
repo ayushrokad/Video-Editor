@@ -728,7 +728,7 @@ html, body {
 }
 .program-overlays-hud.visible { display: flex; }
 
-/* Missing Media / Offline Badge */
+/* Missing Media / Offline & Out-of-Sync Badges */
 .missing-media-badge {
   display: inline-flex;
   align-items: center;
@@ -740,6 +740,61 @@ html, body {
   color: var(--error);
   font-size: 9.5px;
   font-weight: 700;
+}
+
+.clip-link-icon {
+  font-size: 11px !important;
+  opacity: 0.72;
+  color: rgba(255,255,255,0.85);
+  flex-shrink: 0;
+}
+
+.clip-sync-badge {
+  background: #B91C1C;
+  color: #FEE2E2;
+  font-size: 9px;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  padding: 1px 4px;
+  border-radius: 2px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.deliver-summary-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #0F141D;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+}
+
+.deliver-mode-tabs {
+  display: flex;
+  gap: 2px;
+  background: var(--app-bg);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px;
+}
+.deliver-mode-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.deliver-mode-tab.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
 }
 
 .compact-select {
