@@ -10,8 +10,9 @@ This single repository maintains all versions of **FRAMEFLOW**, tracked via dedi
 | :--- | :--- | :--- | :--- | :--- |
 | **V1 (M0)** | Released | [`v1`](https://github.com/ayushrokad/Video-Editor/tree/v1) | [`v1.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v1.0.0) | Web Platform Foundation, Browser Capability Diagnostics, Media Feasibility PoC, and Complete 5,000+ line Competitor Intelligence Research Library. |
 | **V2 (M1/M2)** | Released | [`v2`](https://github.com/ayushrokad/Video-Editor/tree/v2) | [`v2.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v2.0.0) | Connected Non-Linear Editing Platform: Dynamic Resizable Panel Manager, Real Media Bins, Source/Program Dual Monitors, Multitrack Timeline with Trimming/Splitting, Contextual Inspector, Command Undo/Redo, and IndexedDB Persistence. |
-| **V3 (M3)** | **Current / Active** | [`v3`](https://github.com/ayushrokad/Video-Editor/tree/v3) | [`v3.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v3.0.0) | Professional UI, Timeline UX & Keyboard System: Standardized Google Material Symbols Rounded, 4-Zone Professional Timeline (`V`, `A`, `B`, `N`, `R`, `C`, `Y`, `U`, `P`, `H`, `Z`, `T`), Visual Keyboard Shortcuts Customizer Modal with NLE Preset Switching, 6 Specialist Workspaces (`Media`, `Edit`, `Motion`, `Color`, `Audio`, `Deliver`), Master Audio Stereo VU Meter, and Export Queue. |
-| **V4 (M4)** | Planned | `v4` | `v4.0.0` | Web Audio Multichannel DSP Routing Console, WebGPU Real-Time Transition Shaders, and Offline Video Export Engine. |
+| **V3 (M3)** | Released | [`v3`](https://github.com/ayushrokad/Video-Editor/tree/v3) | [`v3.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v3.0.0) | Professional UI, Timeline UX & Keyboard System: Standardized Google Material Symbols Rounded, 4-Zone Professional Timeline, Visual Keyboard Shortcuts Customizer Modal, 6 Specialist Workspaces, Master Stereo VU Meter, and Export Queue. |
+| **V4 (M4)** | **Current / Active** | [`v4`](https://github.com/ayushrokad/Video-Editor/tree/v4) | [`v4.0.0`](https://github.com/ayushrokad/Video-Editor/releases/tag/v4.0.0) | Professional Interface Redesign & Adaptive Workspace System: Unified 34px Application Chrome, Tabbed/Split Monitor Group (`Source` \| `Program`), Sleek Empty States, Timeline Display Settings Popover (Thumbnails, Waveforms, Compact Tracks), Direct Asset Drag-and-Drop onto Track Lanes, Progressive Disclosure Accordion Inspector, and Refined Charcoal Design Tokens. |
+| **V5 (M5)** | Planned | `v5` | `v5.0.0` | Web Audio Multichannel DSP Routing Console, WebGPU Real-Time Transition Shaders, and Hardware-Accelerated Offline Export Engine. |
 
 ---
 
@@ -32,6 +33,11 @@ To switch to **Version 3**:
 git checkout v3
 ```
 
+To switch to **Version 4**:
+```bash
+git checkout v4
+```
+
 To stay on the latest production release:
 ```bash
 git checkout main
@@ -40,6 +46,16 @@ git checkout main
 ---
 
 ## Detailed Version Changelog
+
+### Version 4.0.0 — Professional Interface Redesign & Adaptive Workspace System (Milestone M4)
+- **Streamlined 34px Unified Application Header:** Consolidated Logo, 14-menu bar, Workspace Switcher, Project Title, Save badge, Undo/Redo, and Export into a compact single-bar layout to maximize editing vertical real estate.
+- **Unified Tabbed / Split Monitor Group:** Merged Source and Program Monitors into a tabbed panel group by default (`Source` | `Program: Master`) with a 1-click **Split View** toggle for side-by-side comparison.
+- **Clean Empty States:** Added structured, actionable empty state cards for both Source Monitor and Program Monitor when no footage or clips are loaded.
+- **Refined Charcoal Design Tokens:** Applied quiet, cohesive dark tokens (`#11151C` app bg, `#181E28` panel bg, `#1D2531` headers, `#0E1218` timeline, `#2B3442` 1px borders, `#4B8DFF` restrained accent).
+- **Compact Integrated Timeline Toolbar & Display Settings Popover:** Replaced oversized buttons with compact icon-only controls (`magnet`, `link`, 12 tools) and added a **Timeline Display Settings** wrench menu toggling Video Thumbnails, Audio Waveforms, Clip Names, Keyframes, Effects Badges, Markers, and Compact Track Height.
+- **Direct Asset Drag-and-Drop onto Track Lanes:** Users can drag assets directly from the Project Bin onto specific Video/Audio track lanes at exact timeline coordinates.
+- **Progressive Disclosure Accordion Inspector:** Replaced static stacks with collapsible accordion sections (`Master Sequence Settings`, `Project Overview`, `Video Transform`, `Real-Time GPU Color Grading`, `Crop & Edge Inset`, `Audio Gain & Pan`, `Audio Fades`).
+- **Asset Search Filter:** Live search bar inside the Project panel to filter clips and bins instantly.
 
 ### Version 3.0.0 — Professional UI, Four-Zone Timeline & Keyboard System
 - **Unified Design System & Material Symbols Rounded:** Complete replacement of mixed emoji/Unicode icons with Google Material Symbols Rounded (`near_me`, `content_cut`, `tune`, `palette`, `graphic_eq`, `fullscreen`, etc.).

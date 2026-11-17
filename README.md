@@ -12,8 +12,9 @@ FRAMEFLOW bridges the gap between heavyweight desktop NLEs (Adobe Premiere Pro, 
 All versions of the project are maintained within this single repository:
 - **[Version 1 (V1)](https://github.com/ayushrokad/Video-Editor/tree/v1):** Web Platform Foundation, Browser Diagnostics, and Competitor Intelligence Library.
 - **[Version 2 (V2)](https://github.com/ayushrokad/Video-Editor/tree/v2):** Connected Non-Linear Editing Platform with Dynamic Panels, Real Media Bins, Multitrack Timeline, Trimming/Splitting, Contextual Inspector, and IndexedDB Persistence.
-- **[Version 3 (V3 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v3):** Professional UI, Four-Zone Timeline, Standardized Google Material Symbols Rounded, Scoped Keyboard System, Visual Shortcuts Customizer Modal, Six Specialist Workspaces, Stereo VU Meter, and Export Queue.
-- **Version 4 (V4 - Planned):** Web Audio Multichannel DSP Routing & Mixing Console, WebGPU Real-Time Transition Shaders, and Offline Video Export Engine.
+- **[Version 3 (V3)](https://github.com/ayushrokad/Video-Editor/tree/v3):** Professional UI, Four-Zone Timeline, Standardized Google Material Symbols Rounded, Scoped Keyboard System, Visual Shortcuts Customizer Modal, Six Specialist Workspaces, Stereo VU Meter, and Export Queue.
+- **[Version 4 (V4 - Current)](https://github.com/ayushrokad/Video-Editor/tree/v4):** Professional Interface Redesign & Adaptive Workspace System: Streamlined 34px Unified Chrome, Tabbed/Split Monitor Group (`Source` | `Program`), Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-and-Drop to Track Lanes, Progressive Disclosure Accordion Inspector, and Quiet Charcoal Design System.
+- **Version 5 (V5 - Planned):** Web Audio Multichannel DSP Routing & Mixing Console, WebGPU Real-Time Transition Shaders, and Offline Video Export Engine.
 - See [VERSIONS.md](VERSIONS.md) for the complete version changelog and branch guide.
 
 ### Key Architectural Pillars
@@ -64,8 +65,9 @@ FRAMEFLOW/
 - **M0 (Completed in V1):** Web Platform Foundation, Browser Capability Diagnostics, and Competitor Research Library.
 - **M1 (Completed in V2):** Professional Dockable Editing Interface, Dynamic Resizable Panels, and Strict 1920x1080 Viewport.
 - **M2 (Completed in V2):** Connected NLE Engine, Media Bins, Dual Monitors, Trimming Timeline, Inspector, and IndexedDB Autosave.
-- **M3 (Completed in V3 - Current):** Unified Material Symbols Rounded, Four-Zone Timeline (12 tools), Scoped Keyboard System, Visual Shortcut Customizer Modal, 6 Specialist Workspaces, Stereo VU Meter, and Export Queue.
-- **M4 (Planned in V4):** Web Audio Multichannel DSP Routing, Track Mixing Console, and Parametric EQ.
+- **M3 (Completed in V3):** Unified Material Symbols Rounded, Four-Zone Timeline (12 tools), Scoped Keyboard System, Visual Shortcut Customizer Modal, 6 Specialist Workspaces, Stereo VU Meter, and Export Queue.
+- **M4 (Completed in V4 - Current):** Professional Interface Redesign & Adaptive Workspace System: Unified 34px Application Chrome, Tabbed/Split Monitor Group, Sleek Empty States, Timeline Display Settings Popover, Direct Asset Drag-to-Timeline, Progressive Disclosure Accordion Inspector, and Refined Charcoal Tokens.
+- **M5 (Planned in V5):** Web Audio Multichannel DSP Routing, Track Mixing Console, and Parametric EQ.
 - **M5:** WebCodecs Hardware Video Decoding & Multi-Stream JKL Transport.
 - **M6:** WebGPU Compositing, Blending Modes, and Real-Time Transition Shaders.
 - **M7:** Motion Graph Editor with Bezier Keyframe Interpolation.
